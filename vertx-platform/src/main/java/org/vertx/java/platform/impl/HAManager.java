@@ -457,7 +457,7 @@ public class HAManager {
     // Now deploy this module on this node
     DefaultContext ctx = vertx.getContext();
     vertx.setContext(null);
-    System.out.println("Redploying module");
+    System.out.println(Thread.currentThread() + "Redeploying module");
     platformManager.deployModule(moduleName, failedModule.getObject("conf"), failedModule.getInteger("instances"), true, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
