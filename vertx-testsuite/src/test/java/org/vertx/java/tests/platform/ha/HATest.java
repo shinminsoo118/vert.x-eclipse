@@ -85,17 +85,17 @@ public class HATest extends TestCase {
     cluster.closeCluster();
   }
 
-//  public void testLots() throws Exception {
-//    Cluster cluster = new Cluster(3);
-//    cluster.createCluster();
-//    NodeMods mods = new NodeMods();
-//    for (int i = 0; i < 100; i++) {
-//      mods.addDeployment(new DepInfo("io.vertx~ha-test1~1.0")).addDeployment(new DepInfo("io.vertx~ha-test2~1.0"));
-//    }
-//    cluster.deployMods(1, mods);
-//    cluster.killNode(1);
-//    cluster.closeCluster();
-//  }
+  public void testLots() throws Exception {
+    Cluster cluster = new Cluster(3);
+    cluster.createCluster();
+    NodeMods mods = new NodeMods();
+    for (int i = 0; i < 100; i++) {
+      mods.addDeployment(new DepInfo("io.vertx~ha-test1~1.0")).addDeployment(new DepInfo("io.vertx~ha-test2~1.0"));
+    }
+    cluster.deployMods(1, mods);
+    cluster.killNode(1);
+    cluster.closeCluster();
+  }
 
   public void testSimpleOtherNodesSameMod() throws Exception {
     Cluster cluster = new Cluster(3);
