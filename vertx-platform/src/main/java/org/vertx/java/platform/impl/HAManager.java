@@ -226,6 +226,9 @@ public class HAManager {
   // A node has joined the cluster
   // synchronize this in case the cluster manager is naughty and calls it concurrently
   private synchronized void nodeAdded(final String nodeID) {
+    if (vertx.isEventLoop()) {
+      throw new IllegalStateException("Calling nodeAdded on an eventloop!");
+    }
      // This is not ideal but we need to wait for the group information to appear - and this will be shortly
     // after the node has been added
     checkQuorumWhenAdded(nodeID, System.currentTimeMillis());
@@ -234,6 +237,10 @@ public class HAManager {
   // A node has left the cluster
   // synchronize this in case the cluster manager is naughty and calls it concurrently
   private synchronized void nodeLeft(String leftNodeID) {
+    System.out.println("Thread is " + Thread.currentThread());
+    if (vertx.isEventLoop()) {
+      throw new IllegalStateException("Calling nodeLeft on an eventloop!");
+    }
     checkQuorum();
     if (attainedQuorum) {
 

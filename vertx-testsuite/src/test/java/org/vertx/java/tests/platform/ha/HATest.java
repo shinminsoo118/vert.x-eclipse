@@ -32,9 +32,9 @@ public class HATest extends TestCase {
 
   protected void setUp() throws Exception {
     super.setUp();
-    System.setProperty("vertx.mods", "src/test/mod-test");
-    //System.setProperty("vertx.mods", "vertx-testsuite/src/test/mod-test");
-    //System.setProperty("vertx.clusterManagerFactory", "org.vertx.java.fakecluster.FakeClusterManagerFactory");
+    //System.setProperty("vertx.mods", "src/test/mod-test");
+    System.setProperty("vertx.mods", "vertx-testsuite/src/test/mod-test");
+    System.setProperty("vertx.clusterManagerFactory", "org.vertx.java.fakecluster.FakeClusterManagerFactory");
   }
 
   protected void tearDown() throws Exception {

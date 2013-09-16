@@ -42,7 +42,7 @@ public class FakeClusterManager implements ClusterManager {
   private static ConcurrentMap<String, AsyncMap> asyncMaps = new ConcurrentHashMap<>();
   private static ConcurrentMap<String, AsyncMultiMap> asyncMultiMaps = new ConcurrentHashMap<>();
 
-  private static Executor executor = new OrderedExecutorFactory(Executors.newCachedThreadPool()).getExecutor();
+  //private static Executor executor = new OrderedExecutorFactory(Executors.newCachedThreadPool()).getExecutor();
 
   private VertxSPI vertx;
 
@@ -56,17 +56,17 @@ public class FakeClusterManager implements ClusterManager {
     }
     nodes.put(nodeID, node);
     // Execute on different thread
-    executor.execute(new Runnable() {
-      public void run() {
-        try {
+//    executor.execute(new Runnable() {
+//      public void run() {
+//        try {
           for (NodeListener listener: nodeListeners) {
             listener.nodeAdded(nodeID);
           }
-        } catch (Throwable t) {
-          t.printStackTrace();
-        }
-      }
-    });
+//        } catch (Throwable t) {
+//          t.printStackTrace();
+//        }
+//      }
+//    });
   }
 
   private static void doLeave(final String nodeID) {
@@ -75,17 +75,17 @@ public class FakeClusterManager implements ClusterManager {
     }
     nodes.remove(nodeID);
     // Execute on different thread
-    executor.execute(new Runnable() {
-      public void run() {
-        try {
+//    executor.execute(new Runnable() {
+//      public void run() {
+//        try {
           for (NodeListener listener: nodeListeners) {
             listener.nodeLeft(nodeID);
           }
-        } catch (Throwable t) {
-          t.printStackTrace();
-        }
-      }
-    });
+//        } catch (Throwable t) {
+//          t.printStackTrace();
+//        }
+//      }
+//    });
 
   }
 
