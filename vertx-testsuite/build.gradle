@@ -58,8 +58,6 @@ test {
   systemProperty 'vertx.mods', "$projectDir/src/test/mod-test"
   systemProperty 'vertx.clusterManagerFactory', 'org.vertx.java.fakecluster.FakeClusterManagerFactory'
 
-  // include '**/HATest*'
-
   jvmArgs '-server', '-Xms128m', '-Xmx1024m', '-XX:MaxPermSize=128m', '-XX:NewRatio=2'
 
   testLogging { exceptionFormat "full" }

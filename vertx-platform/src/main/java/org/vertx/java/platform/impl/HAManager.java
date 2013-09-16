@@ -237,7 +237,6 @@ public class HAManager {
   // A node has left the cluster
   // synchronize this in case the cluster manager is naughty and calls it concurrently
   private synchronized void nodeLeft(String leftNodeID) {
-    System.out.println("Thread is " + Thread.currentThread());
     if (vertx.isEventLoop()) {
       throw new IllegalStateException("Calling nodeLeft on an eventloop!");
     }
@@ -277,7 +276,6 @@ public class HAManager {
             @Override
             public Void perform() {
               if (System.currentTimeMillis() - start > 10000) {
-                //dumpThreads();
                 log.warn("Timed out waiting for group information to appear");
               } else if (!stopped) {
                 DefaultContext context = vertx.getContext();
@@ -457,7 +455,6 @@ public class HAManager {
     // Now deploy this module on this node
     DefaultContext ctx = vertx.getContext();
     vertx.setContext(null);
-    System.out.println(Thread.currentThread() + "Redeploying module");
     platformManager.deployModule(moduleName, failedModule.getObject("conf"), failedModule.getInteger("instances"), true, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
@@ -477,7 +474,6 @@ public class HAManager {
     vertx.setContext(ctx);
     try {
       if (!latch.await(30, TimeUnit.SECONDS)) {
-       // dumpThreads();
         throw new VertxException("Timed out waiting for redeploy on failover");
       }
     } catch (InterruptedException e) {

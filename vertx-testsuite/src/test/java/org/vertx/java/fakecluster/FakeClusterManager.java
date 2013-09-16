@@ -1,9 +1,7 @@
 package org.vertx.java.fakecluster;
 
-import org.apache.mina.filter.executor.OrderedThreadPoolExecutor;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.impl.OrderedExecutorFactory;
 import org.vertx.java.core.spi.Action;
 import org.vertx.java.core.spi.VertxSPI;
 import org.vertx.java.core.spi.cluster.*;
