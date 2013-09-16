@@ -277,7 +277,7 @@ public class HAManager {
             @Override
             public Void perform() {
               if (System.currentTimeMillis() - start > 10000) {
-                dumpThreads();
+                //dumpThreads();
                 log.warn("Timed out waiting for group information to appear");
               } else if (!stopped) {
                 DefaultContext context = vertx.getContext();
@@ -457,6 +457,7 @@ public class HAManager {
     // Now deploy this module on this node
     DefaultContext ctx = vertx.getContext();
     vertx.setContext(null);
+    System.out.println("Redploying module");
     platformManager.deployModule(moduleName, failedModule.getObject("conf"), failedModule.getInteger("instances"), true, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
@@ -476,7 +477,7 @@ public class HAManager {
     vertx.setContext(ctx);
     try {
       if (!latch.await(10, TimeUnit.SECONDS)) {
-        dumpThreads();
+       // dumpThreads();
         throw new VertxException("Timed out waiting for redeploy on failover");
       }
     } catch (InterruptedException e) {
