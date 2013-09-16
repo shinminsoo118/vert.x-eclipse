@@ -33,21 +33,24 @@ public class FakeClusterManager implements ClusterManager {
       Collections.synchronizedMap(new LinkedHashMap<String, FakeClusterManager>());
 
   private static List<NodeListener> nodeListeners = new CopyOnWriteArrayList<>();
-
-  private String nodeID;
-
-  private NodeListener nodeListener;
-
   private static ConcurrentMap<String, Map> syncMaps = new ConcurrentHashMap<>();
   private static ConcurrentMap<String, AsyncMap> asyncMaps = new ConcurrentHashMap<>();
   private static ConcurrentMap<String, AsyncMultiMap> asyncMultiMaps = new ConcurrentHashMap<>();
 
-  //private static Executor executor = new OrderedExecutorFactory(Executors.newCachedThreadPool()).getExecutor();
-
+  private String nodeID;
+  private NodeListener nodeListener;
   private VertxSPI vertx;
 
   public FakeClusterManager(VertxSPI vertx) {
     this.vertx = vertx;
+  }
+
+  public static void reset() {
+    nodes.clear();
+    nodeListeners.clear();
+    syncMaps.clear();
+    asyncMaps.clear();
+    asyncMultiMaps.clear();
   }
 
   private static void doJoin(final String nodeID, FakeClusterManager node) {
@@ -55,18 +58,9 @@ public class FakeClusterManager implements ClusterManager {
       throw new IllegalStateException("Node has already joined!");
     }
     nodes.put(nodeID, node);
-    // Execute on different thread
-//    executor.execute(new Runnable() {
-//      public void run() {
-//        try {
-          for (NodeListener listener: nodeListeners) {
-            listener.nodeAdded(nodeID);
-          }
-//        } catch (Throwable t) {
-//          t.printStackTrace();
-//        }
-//      }
-//    });
+    for (NodeListener listener: nodeListeners) {
+      listener.nodeAdded(nodeID);
+    }
   }
 
   private static void doLeave(final String nodeID) {
@@ -74,19 +68,9 @@ public class FakeClusterManager implements ClusterManager {
       throw new IllegalStateException("Node hasn't joined!");
     }
     nodes.remove(nodeID);
-    // Execute on different thread
-//    executor.execute(new Runnable() {
-//      public void run() {
-//        try {
-          for (NodeListener listener: nodeListeners) {
-            listener.nodeLeft(nodeID);
-          }
-//        } catch (Throwable t) {
-//          t.printStackTrace();
-//        }
-//      }
-//    });
-
+    for (NodeListener listener: nodeListeners) {
+      listener.nodeLeft(nodeID);
+    }
   }
 
   private static void doAddNodeListener(NodeListener listener) {

@@ -326,6 +326,7 @@ public class DefaultVertx implements VertxInternal {
     try {
       if (backgroundPool != null) {
         backgroundPool.awaitTermination(20, TimeUnit.SECONDS);
+        backgroundPool = null;
       }
     } catch (InterruptedException ex) {
       // ignore
