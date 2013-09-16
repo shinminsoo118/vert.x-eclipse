@@ -476,7 +476,7 @@ public class HAManager {
     });
     vertx.setContext(ctx);
     try {
-      if (!latch.await(10, TimeUnit.SECONDS)) {
+      if (!latch.await(30, TimeUnit.SECONDS)) {
        // dumpThreads();
         throw new VertxException("Timed out waiting for redeploy on failover");
       }
