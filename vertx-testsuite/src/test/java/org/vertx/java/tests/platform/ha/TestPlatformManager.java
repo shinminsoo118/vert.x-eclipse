@@ -36,6 +36,7 @@ public class TestPlatformManager extends DefaultPlatformManager {
     if (clusterManager != null) {
       clusterManager.leave();
     }
+    super.stop();
   }
 
   // For testing only

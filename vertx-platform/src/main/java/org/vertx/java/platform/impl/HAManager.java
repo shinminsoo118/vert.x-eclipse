@@ -261,6 +261,7 @@ public class HAManager {
             @Override
             public Void perform() {
               if (System.currentTimeMillis() - start > 10000) {
+                dumpThreads();
                 log.warn("Timed out waiting for group information to appear");
               } else if (!stopped) {
                 DefaultContext context = vertx.getContext();
@@ -459,6 +460,7 @@ public class HAManager {
     vertx.setContext(ctx);
     try {
       if (!latch.await(10, TimeUnit.SECONDS)) {
+        dumpThreads();
         throw new VertxException("Timed out waiting for redeploy on failover");
       }
     } catch (InterruptedException e) {
@@ -488,6 +490,15 @@ public class HAManager {
       return matchingMembers.get((int)lpos);
     } else {
       return null;
+    }
+  }
+
+  private void dumpThreads() {
+    for (Map.Entry<Thread, StackTraceElement[]> entry: Thread.getAllStackTraces().entrySet()) {
+      System.out.println("Dumping thread: " + entry.getKey());
+      for (StackTraceElement elem: entry.getValue()) {
+        System.out.println(elem.toString());
+      }
     }
   }
 
