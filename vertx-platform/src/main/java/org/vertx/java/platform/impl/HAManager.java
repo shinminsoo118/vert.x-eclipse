@@ -198,9 +198,19 @@ public class HAManager {
   }
 
   public void stop() {
-    clusterMap.remove(nodeID);
-    vertx.cancelTimer(quorumTimerID);
-    stopped = true;
+    if (!stopped) {
+      clusterMap.remove(nodeID);
+      vertx.cancelTimer(quorumTimerID);
+      stopped = true;
+    }
+  }
+
+  public void simulateKill() {
+    if (!stopped) {
+      clusterManager.leave();
+      vertx.cancelTimer(quorumTimerID);
+      stopped = true;
+    }
   }
 
   // Set a handler that will be called when failover is complete - used in testing
@@ -228,7 +238,6 @@ public class HAManager {
     if (attainedQuorum) {
 
       // Check for failover
-
       String sclusterInfo = clusterMap.get(leftNodeID);
       if (sclusterInfo == null) {
         // Clean close - do nothing

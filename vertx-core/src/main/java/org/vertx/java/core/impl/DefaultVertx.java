@@ -309,14 +309,14 @@ public class DefaultVertx implements VertxInternal {
       for (HttpServer server : sharedHttpServers.values()) {
         server.close();
       }
-      sharedHttpServers = null;
+      sharedHttpServers.clear();
     }
 
     if (sharedNetServers != null) {
       for (NetServer server : sharedNetServers.values()) {
         server.close();
       }
-      sharedNetServers = null;
+      sharedNetServers.clear();
     }
 
     if (backgroundPool != null) {
@@ -326,7 +326,6 @@ public class DefaultVertx implements VertxInternal {
     try {
       if (backgroundPool != null) {
         backgroundPool.awaitTermination(20, TimeUnit.SECONDS);
-        backgroundPool = null;
       }
     } catch (InterruptedException ex) {
       // ignore
@@ -334,7 +333,6 @@ public class DefaultVertx implements VertxInternal {
 
     if (eventLoopGroup != null) {
       eventLoopGroup.shutdownGracefully();
-      eventLoopGroup = null;
     }
 
     eventBus.close(null);

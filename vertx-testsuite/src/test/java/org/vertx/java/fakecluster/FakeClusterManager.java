@@ -1,16 +1,15 @@
 package org.vertx.java.fakecluster;
 
+import org.apache.mina.filter.executor.OrderedThreadPoolExecutor;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.impl.OrderedExecutorFactory;
 import org.vertx.java.core.spi.Action;
 import org.vertx.java.core.spi.VertxSPI;
 import org.vertx.java.core.spi.cluster.*;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /*
  * Copyright 2013 Red Hat, Inc.
@@ -33,7 +32,7 @@ public class FakeClusterManager implements ClusterManager {
   private static Map<String, FakeClusterManager> nodes =
       Collections.synchronizedMap(new LinkedHashMap<String, FakeClusterManager>());
 
-  private static List<NodeListener> nodeListeners = new ArrayList<>();
+  private static List<NodeListener> nodeListeners = new CopyOnWriteArrayList<>();
 
   private String nodeID;
 
@@ -43,7 +42,7 @@ public class FakeClusterManager implements ClusterManager {
   private static ConcurrentMap<String, AsyncMap> asyncMaps = new ConcurrentHashMap<>();
   private static ConcurrentMap<String, AsyncMultiMap> asyncMultiMaps = new ConcurrentHashMap<>();
 
-  private static ExecutorService executorService = Executors.newCachedThreadPool();
+  private static Executor executor = new OrderedExecutorFactory(Executors.newCachedThreadPool()).getExecutor();
 
   private VertxSPI vertx;
 
@@ -51,24 +50,42 @@ public class FakeClusterManager implements ClusterManager {
     this.vertx = vertx;
   }
 
-  private static void doJoin(String nodeID, FakeClusterManager node) {
+  private static void doJoin(final String nodeID, FakeClusterManager node) {
     if (nodes.containsKey(nodeID)) {
       throw new IllegalStateException("Node has already joined!");
     }
     nodes.put(nodeID, node);
-    for (NodeListener listener: nodeListeners) {
-      listener.nodeAdded(nodeID);
-    }
+    // Execute on different thread
+    executor.execute(new Runnable() {
+      public void run() {
+        try {
+          for (NodeListener listener: nodeListeners) {
+            listener.nodeAdded(nodeID);
+          }
+        } catch (Throwable t) {
+          t.printStackTrace();
+        }
+      }
+    });
   }
 
-  private static void doLeave(String nodeID) {
+  private static void doLeave(final String nodeID) {
     if (!nodes.containsKey(nodeID)) {
       throw new IllegalStateException("Node hasn't joined!");
     }
     nodes.remove(nodeID);
-    for (NodeListener listener: nodeListeners) {
-      listener.nodeLeft(nodeID);
-    }
+    // Execute on different thread
+    executor.execute(new Runnable() {
+      public void run() {
+        try {
+          for (NodeListener listener: nodeListeners) {
+            listener.nodeLeft(nodeID);
+          }
+        } catch (Throwable t) {
+          t.printStackTrace();
+        }
+      }
+    });
 
   }
 
