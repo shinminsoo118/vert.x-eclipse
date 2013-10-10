@@ -27,16 +27,20 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.core.sockjs.SockJSSocket;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-class RawWebSocketTransport {
+public class RawWebSocketTransport {
 
   private static final Logger log = LoggerFactory.getLogger(WebSocketTransport.class);
 
-  private static class RawWSSockJSSocket extends SockJSSocketBase {
+  public static class RawWSSockJSSocket extends SockJSSocketBase {
 
     private ServerWebSocket ws;
+
+    public static AtomicInteger count = new AtomicInteger(0);
 
     RawWSSockJSSocket(Vertx vertx, ServerWebSocket ws) {
       super(vertx);
@@ -48,6 +52,12 @@ class RawWebSocketTransport {
           RawWSSockJSSocket.super.close();
         }
       });
+      count.incrementAndGet();
+    }
+
+    protected void finalize() throws Throwable {
+      super.finalize();
+      count.decrementAndGet();
     }
 
     public SockJSSocket dataHandler(Handler<Buffer> handler) {

@@ -36,6 +36,7 @@ import org.vertx.java.core.net.NetServer;
 import org.vertx.java.core.net.NetSocket;
 import org.vertx.java.core.net.impl.ServerID;
 import org.vertx.java.core.parsetools.RecordParser;
+import org.vertx.java.core.sockjs.impl.RawWebSocketTransport;
 import org.vertx.java.core.spi.cluster.AsyncMultiMap;
 import org.vertx.java.core.spi.cluster.ChoosableIterable;
 import org.vertx.java.core.spi.cluster.ClusterManager;
@@ -77,6 +78,15 @@ public class DefaultEventBus implements EventBus {
     this.subs = null;
     this.clusterMgr = null;
     ManagementRegistry.registerEventBus(serverID);
+    vertx.setPeriodic(1000, new Handler<Long>() {
+      @Override
+      public void handle(Long event) {
+        System.gc();
+        System.gc();
+        System.gc();
+        System.out.println("RawWebSocketTransport.RawWSSockJSSocket count: " + RawWebSocketTransport.RawWSSockJSSocket.count.get());
+      }
+    });
   }
 
   public DefaultEventBus(VertxInternal vertx, int port, String hostname, ClusterManager clusterManager) {
@@ -90,6 +100,8 @@ public class DefaultEventBus implements EventBus {
     this.subs = clusterMgr.getAsyncMultiMap("subs");
     this.server = setServer(port, hostname, listenHandler);
     ManagementRegistry.registerEventBus(serverID);
+
+
   }
 
   @Override
