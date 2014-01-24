@@ -97,6 +97,7 @@ public class DefaultVertx implements VertxInternal {
   }
 
   public DefaultVertx(int port, String hostname, final Handler<AsyncResult<Vertx>> resultHandler) {
+    System.out.println("** Creating Vert.x");
     ClusterManagerFactory factory;
     String clusterManagerFactoryClassName = System.getProperty("vertx.clusterManagerFactory");
     if (clusterManagerFactoryClassName != null) {
@@ -117,9 +118,11 @@ public class DefaultVertx implements VertxInternal {
     this.clusterManager = factory.createClusterManager(this);
     this.clusterManager.join();
     final Vertx inst = this;
+    System.out.println("** Creating event bus");
     this.eventBus = new DefaultEventBus(this, port, hostname, clusterManager, new AsyncResultHandler<Void>() {
       @Override
       public void handle(AsyncResult<Void> res) {
+        System.out.println("** Event bus done");
         if (resultHandler != null) {
           if (res.succeeded()) {
             resultHandler.handle(new DefaultFutureResult<>(inst));

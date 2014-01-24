@@ -598,10 +598,12 @@ public class DefaultEventBus implements EventBus {
       }
 
     });
+    System.out.println("** Calling server.listen");
     server.listen(port, hostName, new AsyncResultHandler<NetServer>() {
       @Override
       public void handle(AsyncResult<NetServer> asyncResult) {
         if (asyncResult.succeeded()) {
+          System.out.println("** Event bus server is not listening");
           // Obtain system configured public host/port
           int publicPort = Integer.getInteger("vertx.cluster.public.port", -1);
           String publicHost = System.getProperty("vertx.cluster.public.host", null);
@@ -609,7 +611,9 @@ public class DefaultEventBus implements EventBus {
           // If using a wilcard port (0) then we ask the server for the actual port:
           int serverPort = (publicPort == -1) ? server.port() : publicPort;
           String serverHost = (publicHost == null) ? hostName : publicHost;
-          DefaultEventBus.this.serverID = new ServerID(serverPort, serverHost);
+          ServerID theServerID = new ServerID(serverPort, serverHost);
+          System.out.println("** Set server id to " + theServerID);
+          DefaultEventBus.this.serverID = theServerID;
         }
         if (listenHandler != null) {
           if (asyncResult.succeeded()) {

@@ -110,18 +110,22 @@ public class DefaultPlatformManager implements PlatformManagerInternal, ModuleRe
   }
 
   protected DefaultPlatformManager(int port, String hostname) {
+    System.out.println("** Creating platform maanager");
     final CountDownLatch latch = new CountDownLatch(1);
     DefaultVertx v = new DefaultVertx(port, hostname, new Handler<AsyncResult<Vertx>>() {
       @Override
       public void handle(AsyncResult<Vertx> result) {
+        System.out.println("** Vert.x ready");
         latch.countDown();
       }
     });
+    System.out.println("** Waiting for vertx");
     try {
       latch.await(10, TimeUnit.SECONDS);
     } catch (Exception e) {
       e.printStackTrace();
     }
+
     this.vertx = new WrappedVertx(v);
     this.clusterManager = v.clusterManager();
     init();

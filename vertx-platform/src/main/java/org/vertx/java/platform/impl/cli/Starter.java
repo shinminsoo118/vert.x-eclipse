@@ -208,7 +208,9 @@ public class Starter {
   }
 
   private PlatformManager createPM(int port, String host) {
+    System.out.println("** Creating platform manager");
     PlatformManager pm =  PlatformLocator.factory.createPlatformManager(port, host);
+    System.out.println("** Platform manager created");
     registerExitHandler(pm);
     return pm;
   }
@@ -270,6 +272,7 @@ public class Starter {
   }
 
   private void runVerticle(boolean zip, boolean module, String main, Args args) {
+    System.out.println("** running verticle");
     boolean ha = args.map.get("-ha") != null;
     boolean clustered = args.map.get("-cluster") != null;
     PlatformManager mgr = startPM(ha, clustered, args);
@@ -368,6 +371,7 @@ public class Starter {
         mgr.deployWorkerVerticle(false, main, conf, classpath, instances, includes,
                                  createLoggingHandler("deploying worker verticle", doneHandler));
       } else {
+        System.out.println("** now deploying verticle");
         mgr.deployVerticle(main, conf, classpath, instances, includes, createLoggingHandler("deploying verticle", doneHandler));
       }
     }
