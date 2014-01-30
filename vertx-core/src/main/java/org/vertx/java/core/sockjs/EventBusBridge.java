@@ -25,6 +25,7 @@ import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
+import org.vertx.java.core.sockjs.impl.Session;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -279,8 +280,15 @@ public class EventBusBridge implements Handler<SockJSSocket> {
         @Override
         public void handle(Long id) {
           if (System.currentTimeMillis() - pingInfo.lastPing >= pingTimeout) {
+            // cancel the timer now
+            vertx.cancelTimer(id);
+
             // We didn't receive a ping in time so close the socket
-            sock.close();
+            if (sock instanceof Session) {
+              ((Session) sock).shutdown();
+            } else {
+              sock.close();
+            }
           }
         }
       });
