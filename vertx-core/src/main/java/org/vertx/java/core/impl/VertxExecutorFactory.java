@@ -50,6 +50,8 @@ public class VertxExecutorFactory {
 
   public static EventLoopGroup eventLoopGroup(String poolName) {
     int poolSize = Integer.getInteger("vertx.pool.eventloop.size", 2 * Runtime.getRuntime().availableProcessors());
-    return new NioEventLoopGroup(poolSize, new VertxThreadFactory(poolName));
+    NioEventLoopGroup group = new NioEventLoopGroup(poolSize, new VertxThreadFactory(poolName));
+    group.setIoRatio(100);
+    return group;
   }
 }
