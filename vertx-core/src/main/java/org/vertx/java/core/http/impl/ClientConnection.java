@@ -361,10 +361,20 @@ class ClientConnection extends ConnectionBase {
   }
 
   NetSocket createNetSocket() {
+    ChannelHandlerContext ctx = channel.pipeline().context(HttpClientCodec.class);
+    DefaultNetSocket socket = new DefaultNetSocket(vertx, new ChannelAdapter(ctx), context, client.tcpHelper, true);
+
+    // Flush out all pending data
+    endReadAndFlush();
+    return socket;
+  }
+
+  NetSocket switchToNetSocket() {
     // connection was upgraded to raw TCP socket
     upgradedConnection = true;
+
     DefaultNetSocket socket = new DefaultNetSocket(vertx, channel, context, client.tcpHelper, true);
-    Map<Channel, DefaultNetSocket> connectionMap = new HashMap<Channel, DefaultNetSocket>(1);
+    Map<Channel, DefaultNetSocket> connectionMap = new HashMap<>(1);
     connectionMap.put(channel, socket);
 
     // Flush out all pending data

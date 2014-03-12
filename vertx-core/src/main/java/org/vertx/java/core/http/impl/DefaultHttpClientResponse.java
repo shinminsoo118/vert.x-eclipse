@@ -59,6 +59,7 @@ public class DefaultHttpClientResponse implements HttpClientResponse  {
   private MultiMap headers;
   private MultiMap trailers;
   private List<String> cookies;
+  private boolean switched;
 
   DefaultHttpClientResponse(Vertx vertx, DefaultHttpClientRequest request, ClientConnection conn, HttpResponse response) {
     this.vertx = vertx;
@@ -219,6 +220,14 @@ public class DefaultHttpClientResponse implements HttpClientResponse  {
   public NetSocket netSocket() {
     if (netSocket == null) {
       netSocket = conn.createNetSocket();
+    }
+    return netSocket;
+  }
+
+  NetSocket upgradeToNetSocket() {
+    if (netSocket == null || !switched) {
+      netSocket = conn.switchToNetSocket();
+      switched = true;
     }
     return netSocket;
   }

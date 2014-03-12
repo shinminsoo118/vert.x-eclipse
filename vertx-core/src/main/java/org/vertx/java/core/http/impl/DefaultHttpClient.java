@@ -251,7 +251,7 @@ public class DefaultHttpClient implements HttpClient {
           // connect successful force the modification of the ChannelPipeline
           // beside this also pause the socket for now so the user has a chance to register its dataHandler
           // after received the NetSocket
-          final NetSocket socket = event.netSocket();
+          final NetSocket socket = ((DefaultHttpClientResponse)event).upgradeToNetSocket();
           socket.pause();
 
           response = new HttpClientResponse() {
