@@ -3352,6 +3352,72 @@ public class HttpTestClient extends TestClientBase {
       }
     });
   }
+
+  public void testNetSocketWrite() {
+    if (compression()) {
+      tu.testComplete();
+      return;
+    }
+    final Buffer buffer = TestUtils.generateRandomBuffer(128);
+    final Buffer completeBuffer = new Buffer();
+    completeBuffer.appendBuffer(buffer);
+    completeBuffer.appendBuffer(buffer);
+
+    final Buffer received = new Buffer();
+    AsyncResultHandler<HttpServer> handler = new AsyncResultHandler<HttpServer>() {
+      @Override
+      public void handle(AsyncResult<HttpServer> ar) {
+        tu.azzert(ar.succeeded());
+        client.getNow("some-uri:8080", new Handler<HttpClientResponse>() {
+          @Override
+          public void handle(HttpClientResponse event) {
+            tu.checkThread();
+            tu.azzert(200 == event.statusCode());
+            event.dataHandler(new Handler<Buffer>() {
+              @Override
+              public void handle(Buffer event) {
+                received.appendBuffer(event);
+                if (received.length() == completeBuffer.length()) {
+                  tu.azzert(TestUtils.buffersEqual(received, completeBuffer));
+                  tu.testComplete();
+                }
+              }
+            });
+          }
+        });
+      }
+    };
+
+    startServer(new Handler<HttpServerRequest>() {
+      public void handle(final HttpServerRequest req) {
+        tu.checkThread();
+        req.response().exceptionHandler(new Handler<Throwable>() {
+          @Override
+          public void handle(Throwable event) {
+            event.printStackTrace();
+          }
+        });
+        req.response().setStatusCode(200);
+        req.response().setChunked(true);
+        req.response().setStatusMessage("Connection established");
+        req.response().write(buffer);
+        NetSocket socket = req.netSocket();
+        // encode the data the same way as it is expected by HTTP
+        byte[] length = Integer.toHexString(buffer.length()).getBytes();
+        Buffer bufferSocket = new Buffer();
+        bufferSocket.appendBytes(length);
+        bufferSocket.appendByte((byte) '\r');
+        bufferSocket.appendByte((byte) '\n');
+        bufferSocket.appendBuffer(buffer);
+        bufferSocket.appendByte((byte) '\r');
+        bufferSocket.appendByte((byte) '\n');
+        socket.write(bufferSocket);
+
+        req.response().end();
+      }
+
+    }, handler);
+  }
 }
 
 
