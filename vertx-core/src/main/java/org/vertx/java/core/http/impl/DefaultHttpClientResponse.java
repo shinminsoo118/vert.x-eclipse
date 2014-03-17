@@ -142,15 +142,16 @@ public class DefaultHttpClientResponse implements HttpClientResponse  {
 
   @Override
   public HttpClientResponse bodyHandler(final Handler<Buffer> bodyHandler) {
-    final Buffer body = new Buffer();
-    dataHandler(new Handler<Buffer>() {
-      public void handle(Buffer buff) {
-        body.appendBuffer(buff);
-      }
-    });
+    final BodyHandler handler = new BodyHandler();
+    dataHandler(handler);
     endHandler(new VoidHandler() {
       public void handle() {
-        bodyHandler.handle(body);
+        bodyHandler.handle(handler.body);
+        handler.body = null;
+        // reset the dataHandler and buffer so resources can be GC'ed
+        if (dataHandler == handler) {
+          dataHandler = null;
+        }
       }
     });
     return this;
@@ -221,5 +222,15 @@ public class DefaultHttpClientResponse implements HttpClientResponse  {
       netSocket = conn.createNetSocket();
     }
     return netSocket;
+  }
+
+
+  private final class BodyHandler implements Handler<Buffer> {
+    Buffer body = new Buffer();
+
+    @Override
+    public void handle(Buffer event) {
+      body.appendBuffer(event);
+    }
   }
 }
