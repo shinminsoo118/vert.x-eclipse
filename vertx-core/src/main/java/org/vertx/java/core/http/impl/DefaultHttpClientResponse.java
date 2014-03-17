@@ -146,12 +146,7 @@ public class DefaultHttpClientResponse implements HttpClientResponse  {
     dataHandler(handler);
     endHandler(new VoidHandler() {
       public void handle() {
-        bodyHandler.handle(handler.body);
-        handler.body = null;
-        // reset the dataHandler and buffer so resources can be GC'ed
-        if (dataHandler == handler) {
-          dataHandler = null;
-        }
+        handler.notifyHandler(bodyHandler);
       }
     });
     return this;
@@ -226,11 +221,24 @@ public class DefaultHttpClientResponse implements HttpClientResponse  {
 
 
   private final class BodyHandler implements Handler<Buffer> {
-    Buffer body = new Buffer();
+    private Buffer body;
 
     @Override
     public void handle(Buffer event) {
-      body.appendBuffer(event);
+      body().appendBuffer(event);
+    }
+
+    private Buffer body() {
+      if (body == null) {
+        body = new Buffer();
+      }
+      return body;
+    }
+
+    void notifyHandler(Handler<Buffer> bodyHandler) {
+      bodyHandler.handle(body());
+      // reset body so it can get GC'ed
+      body = null;
     }
   }
 }
