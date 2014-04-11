@@ -447,6 +447,9 @@ public class JavaNetTest extends TestBase {
     startTest(getMethodName());
   }
 
-
+  @Test
+  public void testPauseAndResume() throws Exception {
+    startTest(getMethodName());
+  }
 }
 
