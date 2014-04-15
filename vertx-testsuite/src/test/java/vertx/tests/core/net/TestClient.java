@@ -935,76 +935,103 @@ public class TestClient extends TestClientBase {
 
   public void testPauseAndResume() throws Exception {
     // A buffer we will fill with data as it's received
-    Buffer received = new Buffer();
-    int N = 2000;
+    final Buffer received = new Buffer();
+    final int N = 2000;
 
     // Create a server that writes a single character to a
     // received socket connection every 10 milliseconds
     // until 2000 characters have been written.
-    NetServer server = vertx.createNetServer();
-    server.connectHandler((socket) -> {
-      vertx.setPeriodic(10, (id) -> {
-        if (received.length() >= N) {
-          socket.close();
-          vertx.cancelTimer(id);
-          return;
-        }
-        socket.write("C");
-      });
-    }).listen(1234, (ar) -> {
-      if (ar.succeeded()) {
-
-        // Create a client to connect to our server
-        vertx.createNetClient().connect(1234, (result) -> {
-
-          // Connected to the server
-          if (result.succeeded()) {
-            NetSocket clientSocket = result.result();
-
-            // Append all data received to our buffer
-            clientSocket.dataHandler((buffer) -> {
-              received.appendBuffer(buffer);
-            });
-
-            vertx.setTimer(1500, (id) -> {
-              int burst1 = received.length();
-              clientSocket.pause();
-              System.err.println("Pause at " + burst1);
-              tu.azzert(burst1 > 1, "Haven't received data after 500 msec");
-
-              // wait 1500 msec and see if we've received more data
-              vertx.setTimer(1500, (id2) -> {
-                tu.azzert(burst1 == received.length(), "Should not have received data while paused.");
-                clientSocket.resume();
-
-                vertx.setTimer(1500, (id3) -> {
-                  clientSocket.pause();
-                  int burst2 = received.length();
-                  System.err.println("Pause at " + burst2);
-
-                  // wait 1500 msec and see if we've received more data
-                  vertx.setTimer(1500, (id4) -> {
-                    tu.azzert(burst2 == received.length(), "Should not have received data while paused. Expected " + burst2 + " but got " + received.length());
-                    clientSocket.resume();
-                  });
-                });
-              });
-            });
-
-            clientSocket.endHandler( new VoidHandler() {
-              public void handle() {
-                clientSocket.close();
-                server.close();
-                tu.azzert(received.length() == N, "Expected " + N + " but got " + received.length());
-                tu.testComplete();
-              }
-            });
-          } else {
-            tu.exception(result.cause(), "NetClient#connect failed.");
+    final NetServer server = vertx.createNetServer();
+    server.connectHandler(new Handler<NetSocket>() {
+      @Override
+      public void handle(final NetSocket socket) {
+        vertx.setPeriodic(10, new Handler<Long>() {
+          @Override
+          public void handle(Long id) {
+            if (received.length() >= N) {
+              socket.close();
+              vertx.cancelTimer(id);
+              return;
+            }
+            socket.write("C");
           }
         });
-      } else {
-        tu.exception(ar.cause(), "NetServer#listen failed.");
+      }
+    }).listen(1234, new Handler<AsyncResult<NetServer>>() {
+      @Override
+      public void handle(AsyncResult<NetServer> ar) {
+        if (ar.succeeded()) {
+
+          // Create a client to connect to our server
+          vertx.createNetClient().connect(1234, new Handler<AsyncResult<NetSocket>>() {
+            @Override
+            public void handle(AsyncResult<NetSocket> result) {
+
+              // Connected to the server
+              if (result.succeeded()) {
+                final NetSocket clientSocket = result.result();
+
+                // Append all data received to our buffer
+                clientSocket.dataHandler(new Handler<Buffer>() {
+                  @Override
+                  public void handle(Buffer buffer) {
+                    received.appendBuffer(buffer);
+                  }
+                });
+                vertx.setTimer(1500, new Handler<Long>() {
+                  @Override
+                  public void handle(Long event) {
+                    final int burst1 = received.length();
+                    clientSocket.pause();
+                    System.err.println("Pause at " + burst1);
+                    tu.azzert(burst1 > 1, "Haven't received data after 500 msec");
+
+                    // wait 1500 msec and see if we've received more data
+                    vertx.setTimer(1500, new Handler<Long>() {
+                      @Override
+                      public void handle(Long event) {
+                        tu.azzert(burst1 == received.length(), "Should not have received data while paused.");
+                        clientSocket.resume();
+
+                        vertx.setTimer(1500, new Handler<Long>() {
+                          @Override
+                          public void handle(Long event) {
+                            clientSocket.pause();
+                            final int burst2 = received.length();
+                            System.err.println("Pause at " + burst2);
+
+                            // wait 1500 msec and see if we've received more data
+                            vertx.setTimer(1500, new Handler<Long>() {
+                              @Override
+                              public void handle(Long event) {
+                                tu.azzert(burst2 == received.length(), "Should not have received data while paused. Expected " + burst2 + " but got " + received.length());
+                                clientSocket.resume();
+                              }
+                            });
+                          }
+
+                        });
+                      }
+                    });
+                  }
+                });
+
+                clientSocket.endHandler(new VoidHandler() {
+                  public void handle() {
+                    clientSocket.close();
+                    server.close();
+                    tu.azzert(received.length() == N, "Expected " + N + " but got " + received.length());
+                    tu.testComplete();
+                  }
+                });
+              } else {
+                tu.exception(result.cause(), "NetClient#connect failed.");
+              }
+            }
+          });
+        } else {
+          tu.exception(ar.cause(), "NetServer#listen failed.");
+        }
       }
     });
   }
