@@ -49,7 +49,9 @@ public class VertxExecutorFactory {
   // The acceptor pools need to be fixed with a backing queue
 
   public static EventLoopGroup eventLoopGroup(String poolName) {
-    return new NioEventLoopGroup(eventLoopSize(), new VertxThreadFactory(poolName));
+    NioEventLoopGroup group = new NioEventLoopGroup(eventLoopSize(), new VertxThreadFactory(poolName));
+    group.setIoRatio(100);
+    return group;
   }
 
   public static int eventLoopSize() {
