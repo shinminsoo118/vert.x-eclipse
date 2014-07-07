@@ -16,24 +16,9 @@
 
 package io.vertx.core.shareddata;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
-import io.vertx.core.gen.VertxGen;
-import io.vertx.core.spi.cluster.AsyncMap;
-
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-@VertxGen
-public interface NewSharedData {
-
-  <K, V> void getMap(String name, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler);
-
-  // What about lists? multimap? set?
-
-  void getLock(String name, Handler<AsyncResult<Lock>> resultHandler);
-
-  void getLockWithTimeout(String name, long timeout, Handler<AsyncResult<Lock>> resultHandler);
-
-  void getCounter(String name, Handler<AsyncResult<Counter>> resultHandler);
+public class MapOptions {
+  // TODO
 }

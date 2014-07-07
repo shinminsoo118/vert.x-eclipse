@@ -19,9 +19,8 @@ package io.vertx.spi.cluster.impl.hazelcast;
 import com.hazelcast.core.IMap;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.core.spi.cluster.Action;
+import io.vertx.core.shareddata.AsyncMap;
 import io.vertx.core.spi.cluster.VertxSPI;
-import io.vertx.core.spi.cluster.AsyncMap;
 
 class HazelcastAsyncMap<K, V> implements AsyncMap<K, V> {
 
@@ -35,30 +34,26 @@ class HazelcastAsyncMap<K, V> implements AsyncMap<K, V> {
 
   @Override
   public void get(final K k, Handler<AsyncResult<V>> asyncResultHandler) {
-    vertx.executeBlocking(new Action<V>() {
-      public V perform() {
-        return map.get(k);
-      }
-    }, asyncResultHandler);
+    vertx.executeBlocking(() -> map.get(k), asyncResultHandler);
   }
 
   @Override
   public void put(final K k, final V v, Handler<AsyncResult<Void>> completionHandler) {
-    vertx.executeBlocking(new Action<Void>() {
-      public Void perform() {
-        map.put(k, HazelcastServerID.convertServerID(v));
-        return null;
-      }
+    vertx.executeBlocking(() -> {
+      map.put(k, HazelcastServerID.convertServerID(v));
+      return null;
     }, completionHandler);
   }
 
   @Override
-  public void remove(final K k, Handler<AsyncResult<Void>> completionHandler) {
-    vertx.executeBlocking(new Action<Void>() {
-      public Void perform() {
-        map.remove(k);
-        return null;
-      }
+  public void remove(final K k, Handler<AsyncResult<Boolean>> completionHandler) {
+    vertx.executeBlocking(() -> {
+      map.remove(k);
+      return null;
     }, completionHandler);
+  }
+
+  @Override
+  public void close() {
   }
 }

@@ -25,13 +25,17 @@ import com.hazelcast.core.Member;
 import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.impl.FutureResultImpl;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.impl.LoggerFactory;
-import io.vertx.core.spi.cluster.VertxSPI;
-import io.vertx.core.spi.cluster.AsyncMap;
+import io.vertx.core.shareddata.AsyncMap;
+import io.vertx.core.shareddata.MapOptions;
 import io.vertx.core.spi.cluster.AsyncMultiMap;
 import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.core.spi.cluster.NodeListener;
+import io.vertx.core.spi.cluster.VertxSPI;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -113,9 +117,18 @@ public class HazelcastClusterManager implements ClusterManager, MembershipListen
 	 *     additional MultiMap config parameters.
 	 * @return subscription map
 	 */
-  public <K, V> AsyncMultiMap<K, V> getAsyncMultiMap(String name) {
-    com.hazelcast.core.MultiMap map = hazelcast.getMultiMap(name);
-    return new HazelcastAsyncMultiMap(vertx, map);
+  @Override
+  public <K, V> void getAsyncMultiMap(String name, MapOptions options, Handler<AsyncResult<AsyncMultiMap<K, V>>> resultHandler) {
+    vertx.executeBlocking(() -> {
+      com.hazelcast.core.MultiMap<K, V> multiMap = hazelcast.getMultiMap(name);
+      return multiMap;
+    }, ar -> {
+      if (ar.succeeded()) {
+        resultHandler.handle(new FutureResultImpl<>(new HazelcastAsyncMultiMap<>(vertx, ar.result())));
+      } else {
+        resultHandler.handle(new FutureResultImpl<>(ar.cause()));
+      }
+    });
   }
 
   @Override
@@ -139,9 +152,17 @@ public class HazelcastClusterManager implements ClusterManager, MembershipListen
   }
 
   @Override
-  public <K, V> AsyncMap<K, V> getAsyncMap(String name) {
-    IMap<K, V> map = hazelcast.getMap(name);
-    return new HazelcastAsyncMap(vertx, map);
+  public <K, V> void getAsyncMap(String name, MapOptions options, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler) {
+    vertx.executeBlocking(() -> {
+      IMap<K, V> map = hazelcast.getMap(name);
+      return map;
+    }, ar -> {
+      if (ar.succeeded()) {
+        resultHandler.handle(new FutureResultImpl<>(new HazelcastAsyncMap<>(vertx, ar.result())));
+      } else {
+        resultHandler.handle(new FutureResultImpl<>(ar.cause()));
+      }
+    });
   }
 
   @Override

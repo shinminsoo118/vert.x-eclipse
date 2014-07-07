@@ -17,7 +17,10 @@
 package io.vertx.core.spi.cluster;
 
 
-import io.vertx.core.spi.cluster.VertxSPI;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.shareddata.AsyncMap;
+import io.vertx.core.shareddata.MapOptions;
 
 import java.util.List;
 import java.util.Map;
@@ -48,12 +51,12 @@ public interface ClusterManager {
   /**
    * Return an async multi-map for the given name
    */
-  <K, V> AsyncMultiMap<K, V> getAsyncMultiMap(String name);
+  <K, V> void getAsyncMultiMap(String name, MapOptions options, Handler<AsyncResult<AsyncMultiMap<K, V>>> resultHandler);
 
   /**
    * Return an async map for the given name
    */
-  <K, V> AsyncMap<K, V> getAsyncMap(String name);
+  <K, V> void getAsyncMap(String name, MapOptions options, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler);
 
   /**
    * Return a synchronous map for the given name
