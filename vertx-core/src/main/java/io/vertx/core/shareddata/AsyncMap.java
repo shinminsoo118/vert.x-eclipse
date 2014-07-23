@@ -51,7 +51,13 @@ public interface AsyncMap<K, V> {
    * @param k The key
    * @param resultHandler - this will be called some time later to signify the value has been removed
    */
-  void remove(K k, Handler<AsyncResult<Boolean>> resultHandler);
+  void remove(K k, Handler<AsyncResult<V>> resultHandler);
 
-  void clear();
+  void removeIfPresent(K k, V v, Handler<AsyncResult<Boolean>> resultHandler);
+
+  void replace(K k, V v, Handler<AsyncResult<V>> resultHandler);
+
+  void replaceIfPresent(K k, V oldValue, V newValue, Handler<AsyncResult<Boolean>> resultHandler);
+
+  void clear(Handler<AsyncResult<Void>> resultHandler);
 }

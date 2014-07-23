@@ -28,6 +28,7 @@ import io.vertx.core.shareddata.MapOptions;
 import io.vertx.core.shareddata.SharedData;
 import io.vertx.core.spi.cluster.ClusterManager;
 
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -56,45 +57,58 @@ public class SharedDataImpl implements SharedData {
   @Override
   public <K, V> void getClusterWideMapWithOptions(String name, MapOptions options, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler) {
     if (clusterManager == null) {
-      // Just return the local map
-      getLocalMap(name, resultHandler);
-    } else {
-      clusterManager.<K, V>getAsyncMap(name, options, ar -> {
-        if (ar.succeeded()) {
-          // Wrap it
-          resultHandler.handle(new FutureResultImpl<>(new WrappedAsyncMap<K, V>(ar.result())));
-        } else {
-          resultHandler.handle(new FutureResultImpl<>(ar.cause()));
-        }
-      });
+      throw new IllegalStateException("Can't get cluster wide map if not clustered");
     }
-  }
-
-  @Override
-  public <K, V> void getLocalMap(String name, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler) {
-    AsyncMap<K, V> map = (AsyncMap<K, V>)localMaps.get(name);
-    if (map == null) {
-      map = new LocalAsyncMap<>();
-      AsyncMap<K, V> prev = (AsyncMap<K, V>)localMaps.putIfAbsent(name, map);
-      if (prev != null) {
-        map = prev;
+    clusterManager.<K, V>getAsyncMap(name, options, ar -> {
+      if (ar.succeeded()) {
+        // Wrap it
+        resultHandler.handle(new FutureResultImpl<>(new WrappedAsyncMap<K, V>(ar.result())));
+      } else {
+        resultHandler.handle(new FutureResultImpl<>(ar.cause()));
       }
-    }
-    AsyncMap<K, V> theMap = map;
-    vertx.runOnContext(v -> resultHandler.handle(new FutureResultImpl<>(theMap)));
+    });
   }
 
+//  @Override
+//  public <K, V> void getLocalMap(String name, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler) {
+//    AsyncMap<K, V> map = (AsyncMap<K, V>)localMaps.get(name);
+//    if (map == null) {
+//      map = new LocalAsyncMap<>();
+//      AsyncMap<K, V> prev = (AsyncMap<K, V>)localMaps.putIfAbsent(name, map);
+//      if (prev != null) {
+//        map = prev;
+//      }
+//    }
+//    AsyncMap<K, V> theMap = map;
+//    vertx.runOnContext(v -> resultHandler.handle(new FutureResultImpl<>(theMap)));
+//  }
 
-  /*
-  We allow:
 
-  all primitive types and their boxed objects
-  string
-  Buffer (copied if local)
-  byte[] copied if local
-   */
-
-
+  private void checkType(Object obj) {
+    if (obj == null) {
+      throw new IllegalArgumentException("Cannot put null in key or value of cluster wide map");
+    }
+    Class<?> clazz = obj.getClass();
+    if (clazz == Integer.class || clazz == int.class ||
+        clazz == Long.class || clazz == long.class ||
+        clazz == Short.class || clazz == short.class ||
+        clazz == Float.class || clazz == float.class ||
+        clazz == Double.class || clazz == double.class ||
+        clazz == Boolean.class || clazz == boolean.class ||
+        clazz == Byte.class || clazz == byte.class ||
+        clazz == String.class || clazz == byte[].class) {
+      // Basic types - can go in as is
+      return;
+    } else if (obj instanceof ClusterSerializable) {
+      // OK
+      return;
+    } else if (obj instanceof Serializable) {
+      // OK
+      return;
+    } else {
+      throw new IllegalArgumentException("Invalid type: " + clazz + " to put in cluster wide map");
+    }
+  }
 
   class WrappedAsyncMap<K, V> implements AsyncMap<K, V> {
 
@@ -111,56 +125,41 @@ public class SharedDataImpl implements SharedData {
 
     @Override
     public void put(K k, V v, Handler<AsyncResult<Void>> completionHandler) {
-      //checkType(k, v);
+      checkType(k);
+      checkType(v);
       delegate.put(k, v, completionHandler);
     }
 
     @Override
     public void putIfAbsent(K k, V v, Handler<AsyncResult<V>> completionHandler) {
+      checkType(k);
+      checkType(v);
       delegate.putIfAbsent(k, v, completionHandler);
     }
 
     @Override
-    public void remove(K k, Handler<AsyncResult<Boolean>> resultHandler) {
+    public void remove(K k, Handler<AsyncResult<V>> resultHandler) {
       delegate.remove(k, resultHandler);
     }
 
     @Override
-    public void clear() {
-      delegate.clear();
-    }
-  }
-
-  class LocalAsyncMap<K, V> implements AsyncMap<K, V> {
-
-    private final ConcurrentMap<K, V> map = new ConcurrentHashMap<>();
-
-    @Override
-    public void get(K k, Handler<AsyncResult<V>> asyncResultHandler) {
-      vertx.runOnContext(v -> asyncResultHandler.handle(new FutureResultImpl<V>(map.get(k))));
+    public void removeIfPresent(K k, V v, Handler<AsyncResult<Boolean>> resultHandler) {
+      delegate.removeIfPresent(k, v, resultHandler);
     }
 
     @Override
-    public void put(K k, V v, Handler<AsyncResult<Void>> completionHandler) {
-      map.put(k, v);
-      vertx.runOnContext(vo -> completionHandler.handle(new FutureResultImpl<>((Void) null)));
+    public void replace(K k, V v, Handler<AsyncResult<V>> resultHandler) {
+      delegate.replace(k, v, resultHandler);
     }
 
     @Override
-    public void putIfAbsent(K k, V v, Handler<AsyncResult<V>> completionHandler) {
-      V prev = map.putIfAbsent(k, v);
-      vertx.runOnContext(vo -> completionHandler.handle(new FutureResultImpl<>(prev)));
+    public void replaceIfPresent(K k, V oldValue, V newValue, Handler<AsyncResult<Boolean>> resultHandler) {
+      delegate.replaceIfPresent(k, oldValue, newValue, resultHandler);
     }
 
     @Override
-    public void remove(K k, Handler<AsyncResult<Boolean>> resultHandler) {
-      boolean removed = map.remove(k) != null;
-      vertx.runOnContext(v -> resultHandler.handle(new FutureResultImpl<>(removed)));
-    }
-
-    @Override
-    public void clear() {
-      map.clear();
+    public void clear(Handler<AsyncResult<Void>> resultHandler) {
+      delegate.clear(resultHandler);
     }
   }
 

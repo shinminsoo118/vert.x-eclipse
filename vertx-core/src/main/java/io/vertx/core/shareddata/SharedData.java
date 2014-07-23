@@ -30,7 +30,7 @@ public interface SharedData {
 
   <K, V> void getClusterWideMapWithOptions(String name, MapOptions options, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler);
 
-  <K, V> void getLocalMap(String name, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler);
+  //<K, V> void getLocalMap(String name, Handler<AsyncResult<AsyncMap<K, V>>> resultHandler);
 
   // What about lists? multimap? set?
 

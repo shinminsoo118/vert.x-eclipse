@@ -179,35 +179,51 @@ public class FakeClusterManager implements ClusterManager {
     private Map<K, V> map = new ConcurrentHashMap<>();
 
     @Override
-    public void get(final K k, Handler<AsyncResult<V>> asyncResultHandler) {
-      vertx.executeBlocking(() -> map.get(k), asyncResultHandler);
+    public void get(final K k, Handler<AsyncResult<V>> resultHandler) {
+      vertx.executeBlocking(() -> map.get(k), resultHandler);
     }
 
     @Override
-    public void put(final K k, final V v, Handler<AsyncResult<Void>> completionHandler) {
+    public void put(final K k, final V v, Handler<AsyncResult<Void>> resultHandler) {
       vertx.executeBlocking(() -> {
         map.put(k, v);
         return null;
-      }, completionHandler);
+      }, resultHandler);
     }
 
     @Override
-    public void putIfAbsent(K k, V v, Handler<AsyncResult<V>> completionHandler) {
-      vertx.executeBlocking(() -> map.putIfAbsent(k, v), completionHandler);
+    public void putIfAbsent(K k, V v, Handler<AsyncResult<V>> resultHandler) {
+      vertx.executeBlocking(() -> map.putIfAbsent(k, v), resultHandler);
     }
 
     @Override
-    public void remove(final K k, Handler<AsyncResult<Boolean>> completionHandler) {
+    public void removeIfPresent(K k, V v, Handler<AsyncResult<Boolean>> resultHandler) {
+      vertx.executeBlocking(() -> map.remove(k, v), resultHandler);
+    }
+
+    @Override
+    public void replace(K k, V v, Handler<AsyncResult<V>> resultHandler) {
+      vertx.executeBlocking(() -> map.replace(k, v), resultHandler);
+    }
+
+    @Override
+    public void replaceIfPresent(K k, V oldValue, V newValue, Handler<AsyncResult<Boolean>> resultHandler) {
+      vertx.executeBlocking(() -> map.replace(k, oldValue, newValue), resultHandler);
+    }
+
+    @Override
+    public void clear(Handler<AsyncResult<Void>> resultHandler) {
       vertx.executeBlocking(() -> {
-        V v = map.remove(k);
-        return v != null;
-      }, completionHandler);
+        map.clear();
+        return null;
+      }, resultHandler);
     }
 
     @Override
-    public void clear() {
-      map.clear();
+    public void remove(final K k, Handler<AsyncResult<V>> resultHandler) {
+      vertx.executeBlocking(() -> map.remove(k), resultHandler);
     }
+
   }
 
   private class FakeAsyncMultiMap<K, V> implements AsyncMultiMap<K, V> {
