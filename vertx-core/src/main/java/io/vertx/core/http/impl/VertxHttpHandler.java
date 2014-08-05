@@ -129,12 +129,13 @@ public abstract class VertxHttpHandler<C extends ConnectionBase> extends VertxHa
       if (buf != Unpooled.EMPTY_BUFFER) {
          buf = safeBuffer(buf, ctx.alloc());
       }
+      boolean isFinal = frame.isFinal();
       switch (frame.type()) {
         case BINARY:
-          msg = new BinaryWebSocketFrame(frame.isFinal(), 0, buf);
+          msg = new BinaryWebSocketFrame(isFinal, 0, buf);
           break;
         case TEXT:
-          msg = new TextWebSocketFrame(buf);
+          msg = new TextWebSocketFrame(isFinal, 0, buf);
           break;
         case CLOSE:
           msg = new CloseWebSocketFrame(true, 0, buf);
@@ -152,7 +153,6 @@ public abstract class VertxHttpHandler<C extends ConnectionBase> extends VertxHa
           throw new IllegalStateException("Unsupported websocket msg " + msg);
       }
     }
-
     ctx.write(msg, promise);
   }
 
