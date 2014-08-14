@@ -16,29 +16,37 @@
 
 package io.vertx.core.eventbus;
 
-import io.vertx.core.buffer.Buffer;
+import io.vertx.codegen.annotations.Options;
+import io.vertx.core.ServiceHelper;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.spi.DeliveryOptionsFactory;
 
 /**
- *
- * Instances of this class must be stateless as they will be used concurrently.
- *
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public interface MessageCodec<S, R> {
+@Options
+public interface DeliveryOptions {
 
-  // Called when object is encoded to wire
-  void encodeToWire(Buffer buffer, S s);
+  static DeliveryOptions options() {
+    return factory.options();
+  }
 
-  // Called when object is decoded from wire
-  R decodeFromWire(int pos, Buffer buffer);
+  static DeliveryOptions copiedOptions(DeliveryOptions other) {
+    return factory.options(other);
+  }
 
-  // Used when sending locally and no wire involved
-  // Must, at least, make a copy of the message if it is not immutable
-  R transform(S s);
+  static DeliveryOptions optionsFromJson(JsonObject json) {
+    return factory.options(json);
+  }
 
-  int bodyLengthGuess(S s);
+  long getTimeout();
 
-  String name();
+  DeliveryOptions setTimeout(long timeout);
 
-  byte systemCodecID();
+  String getCodecName();
+
+  DeliveryOptions setCodecName(String codecName);
+
+  static final DeliveryOptionsFactory factory = ServiceHelper.loadFactory(DeliveryOptionsFactory.class);
+
 }

@@ -18,18 +18,12 @@ package io.vertx.test.core;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.eventbus.Registration;
-import io.vertx.core.shareddata.Shareable;
 import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.test.fakecluster.FakeClusterManager;
 import org.junit.Test;
 
-import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -48,7 +42,6 @@ public class ClusteredEventBusTest extends EventBusTestBase {
   @Override
   protected <T> void testSend(T val, Consumer <T> consumer) {
     startNodes(2);
-    registerCodecs();
 
     Registration reg = vertices[1].eventBus().registerHandler(ADDRESS1, (Message<T> msg) -> {
       if (consumer == null) {
@@ -68,7 +61,6 @@ public class ClusteredEventBusTest extends EventBusTestBase {
   @Override
   protected <T> void testReply(T val, Consumer<T> consumer) {
     startNodes(2);
-    registerCodecs();
     String str = TestUtils.randomUnicodeString(1000);
     Registration reg = vertices[1].eventBus().registerHandler(ADDRESS1, msg -> {
       assertEquals(str, msg.body());
@@ -76,14 +68,14 @@ public class ClusteredEventBusTest extends EventBusTestBase {
     });
     reg.completionHandler(ar -> {
       assertTrue(ar.succeeded());
-      vertices[0].eventBus().send(ADDRESS1, str, (Message<T> reply) -> {
+      vertices[0].eventBus().send(ADDRESS1, str, onSuccess((Message<T> reply) -> {
         if (consumer == null) {
           assertEquals(val, reply.body());
         } else {
           consumer.accept(reply.body());
         }
         testComplete();
-      });
+      }));
     });
 
     await();
@@ -93,8 +85,6 @@ public class ClusteredEventBusTest extends EventBusTestBase {
   protected <T> void testPublish(T val, Consumer<T> consumer) {
     int numNodes = 3;
     startNodes(numNodes);
-    registerCodecs();
-
     AtomicInteger count = new AtomicInteger();
     class MyHandler implements Handler<Message<T>> {
       @Override
@@ -143,104 +133,60 @@ public class ClusteredEventBusTest extends EventBusTestBase {
   // should be separate tests
   // Also... need tests for replying with both objects with no codec and objects that are not Copyable/Shareable
 
-  @Test
-  public void testSendUnsupportedObject() {
-    startNodes(1);
-    EventBus eb = vertices[0].eventBus();
-    try {
-      eb.send(ADDRESS1, new Object());
-      fail("Should throw exception");
-    } catch (IllegalArgumentException e) {
-      // OK
-    }
-    try {
-      eb.send(ADDRESS1, new HashMap<>());
-      fail("Should throw exception");
-    } catch (IllegalArgumentException e) {
-      // OK
-    }
-  }
-
-  @Test
-  public void testSendWithReplyUnsupportedObject() {
-    startNodes(1);
-    EventBus eb = vertices[0].eventBus();
-    try {
-      eb.send(ADDRESS1, new Object(), reply -> {});
-      fail("Should throw exception");
-    } catch (IllegalArgumentException e) {
-      // OK
-    }
-    try {
-      eb.send(ADDRESS1, new HashMap<>(), reply -> {});
-      fail("Should throw exception");
-    } catch (IllegalArgumentException e) {
-      // OK
-    }
-  }
-
-  @Test
-  public void testSendWithTimeoutUnsupportedObject() {
-    startNodes(1);
-    EventBus eb = vertices[0].eventBus();
-    try {
-      eb.sendWithTimeout(ADDRESS1, new Object(), 1, reply -> {
-      });
-      fail("Should throw exception");
-    } catch (IllegalArgumentException e) {
-      // OK
-    }
-    try {
-      eb.sendWithTimeout(ADDRESS1, new HashMap<>(), 1, reply -> {
-      });
-      fail("Should throw exception");
-    } catch (IllegalArgumentException e) {
-      // OK
-    }
-  }
-
-  @Test
-  public void testUnregisterCodec() {
-    startNodes(1);
-    EventBus eb = vertices[0].eventBus();
-    class Foo implements Shareable {
-    }
-    class FooCodec implements MessageCodec<Foo> {
-      @Override
-      public Buffer encode(Foo object) {
-        return Buffer.buffer();
-      }
-
-      @Override
-      public Foo decode(Buffer buffer) {
-        return new Foo();
-      }
-    }
-
-    eb.registerCodec(Foo.class, new FooCodec());
-    eb.registerHandler("foo", (Message<Foo> msg) -> {
-      eb.unregisterCodec(Foo.class);
-      try {
-        eb.send("bar", new Foo());
-        fail("Should throw exception");
-      } catch (IllegalArgumentException e) {
-        // OK
-        testComplete();
-      }
-    });
-    eb.registerHandler("bar", (Message<Foo> msg) -> {
-      fail("Should not be called");
-    });
-
-    eb.send("foo", new Foo());
-
-    await();
-  }
-
-  private void registerCodecs() {
-    for (Vertx vertx : vertices) {
-      registerCodecs(vertx.eventBus());
-    }
-  }
+//  @Test
+//  public void testSendUnsupportedObject() {
+//    startNodes(1);
+//    EventBus eb = vertices[0].eventBus();
+//    try {
+//      eb.send(ADDRESS1, new Object());
+//      fail("Should throw exception");
+//    } catch (IllegalArgumentException e) {
+//      // OK
+//    }
+//    try {
+//      eb.send(ADDRESS1, new HashMap<>());
+//      fail("Should throw exception");
+//    } catch (IllegalArgumentException e) {
+//      // OK
+//    }
+//  }
+//
+//  @Test
+//  public void testSendWithReplyUnsupportedObject() {
+//    startNodes(1);
+//    EventBus eb = vertices[0].eventBus();
+//    try {
+//      eb.send(ADDRESS1, new Object(), reply -> {});
+//      fail("Should throw exception");
+//    } catch (IllegalArgumentException e) {
+//      // OK
+//    }
+//    try {
+//      eb.send(ADDRESS1, new HashMap<>(), reply -> {});
+//      fail("Should throw exception");
+//    } catch (IllegalArgumentException e) {
+//      // OK
+//    }
+//  }
+//
+//  @Test
+//  public void testSendWithTimeoutUnsupportedObject() {
+//    startNodes(1);
+//    EventBus eb = vertices[0].eventBus();
+//    try {
+//      eb.sendWithTimeout(ADDRESS1, new Object(), 1, reply -> {
+//      });
+//      fail("Should throw exception");
+//    } catch (IllegalArgumentException e) {
+//      // OK
+//    }
+//    try {
+//      eb.sendWithTimeout(ADDRESS1, new HashMap<>(), 1, reply -> {
+//      });
+//      fail("Should throw exception");
+//    } catch (IllegalArgumentException e) {
+//      // OK
+//    }
+//  }
 
 }
