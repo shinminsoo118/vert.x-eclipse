@@ -49,8 +49,10 @@ import io.vertx.core.http.impl.ws.WebSocketFrameInternal;
 import io.vertx.core.impl.Closeable;
 import io.vertx.core.impl.ContextImpl;
 import io.vertx.core.impl.VertxInternal;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.impl.LoggerFactory;
+import io.vertx.core.metrics.spi.HttpClientMetrics;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.impl.KeyStoreHelper;
 import io.vertx.core.net.impl.PartialPooledByteBufAllocator;
@@ -64,6 +66,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class HttpClientImpl implements HttpClient {
 
@@ -79,6 +83,7 @@ public class HttpClientImpl implements HttpClient {
   private final Closeable closeHook;
   private boolean closed;
   private final SSLHelper sslHelper;
+  private final HttpClientMetrics metrics;
 
   public HttpClientImpl(VertxInternal vertx, HttpClientOptions options) {
     this.vertx = vertx;
@@ -104,6 +109,7 @@ public class HttpClientImpl implements HttpClient {
     pool.setKeepAlive(options.isKeepAlive());
     pool.setPipelining(options.isPipelining());
     pool.setMaxSockets(options.getMaxPoolSize());
+    this.metrics = vertx.metricsSPI().register(this, options);
   }
 
   @Override
@@ -199,6 +205,20 @@ public class HttpClientImpl implements HttpClient {
       creatingContext.removeCloseHook(closeHook);
     }
     closed = true;
+    metrics.closed();
+  }
+
+  @Override
+  public String metricBaseName() {
+    return metrics.baseName();
+  }
+
+  @Override
+  public Map<String, JsonObject> metrics(TimeUnit rateUnit, TimeUnit durationUnit) {
+    String name = metricBaseName();
+    return vertx.metrics(rateUnit, durationUnit).entrySet().stream()
+      .filter(e -> e.getKey().startsWith(name))
+      .collect(Collectors.toMap(e -> e.getKey().substring(name.length() + 1), Map.Entry::getValue));
   }
 
   HttpClientOptions getOptions() {
@@ -231,6 +251,10 @@ public class HttpClientImpl implements HttpClient {
 
   void removeChannel(Channel channel) {
     connectionMap.remove(channel);
+  }
+
+  HttpClientMetrics httpClientMetrics() {
+    return metrics;
   }
 
   private void applyConnectionOptions(Bootstrap bootstrap) {
@@ -335,7 +359,7 @@ public class HttpClientImpl implements HttpClient {
 
   private void createConn(ContextImpl context, int port, String host, Channel ch, Handler<ClientConnection> connectHandler, ConnectionLifeCycleListener listener) {
     ClientConnection conn = new ClientConnection(vertx, HttpClientImpl.this, ch,
-        options.isSsl(), host, port, context, listener);
+        options.isSsl(), host, port, context, listener, metrics);
     conn.closeHandler(v -> {
       // The connection has been closed - tell the pool about it, this allows the pool to create more
       // connections. Note the pool doesn't actually remove the connection, when the next person to get a connection

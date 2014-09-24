@@ -47,6 +47,7 @@ import io.vertx.core.http.impl.HttpServerImpl;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.impl.LoggerFactory;
+import io.vertx.core.metrics.spi.Metrics;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.NetServer;
@@ -71,6 +72,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
@@ -89,6 +91,7 @@ public class VertxImpl implements VertxInternal {
   private final FileSystem fileSystem = getFileSystem();
   private EventBus eventBus;
   private final SharedData sharedData;
+  private final Metrics metrics;
 
   private ExecutorService workerPool;
   private ExecutorService internalBlockingPool;
@@ -103,7 +106,7 @@ public class VertxImpl implements VertxInternal {
   private final ConcurrentMap<Long, InternalTimerHandler> timeouts = new ConcurrentHashMap<>();
   private final AtomicLong timeoutCounter = new AtomicLong(0);
   private final ClusterManager clusterManager;
-  private final DeploymentManager deploymentManager = new DeploymentManager(this);
+  private final DeploymentManager deploymentManager;
   private boolean closed;
   private HAManager haManager;
 
@@ -117,6 +120,8 @@ public class VertxImpl implements VertxInternal {
 
   VertxImpl(VertxOptions options, Handler<AsyncResult<Vertx>> resultHandler) {
     configurePools(options);
+    this.deploymentManager = new DeploymentManager(this);
+    this.metrics = Metrics.metrics(this, options);
     if (options.isClustered()) {
       this.clusterManager = getClusterManager(options);
       this.clusterManager.setVertx(this);
@@ -232,6 +237,19 @@ public class VertxImpl implements VertxInternal {
 
   public Map<ServerID, NetServerImpl> sharedNetServers() {
     return sharedNetServers;
+  }
+
+  @Override
+  public String metricBaseName() {
+    return metrics.baseName();
+  }
+
+  @Override
+  public Map<String, JsonObject> metrics(TimeUnit rateUnit, TimeUnit durationUnit) {
+    String name = metricBaseName();
+    return metrics.metrics(rateUnit, durationUnit).entrySet().stream()
+      .filter(e -> e.getKey().startsWith(name))
+      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   public boolean cancelTimer(long id) {
@@ -380,6 +398,8 @@ public class VertxImpl implements VertxInternal {
           eventLoopGroup.shutdownNow();
         }
 
+        metrics.stop();
+
         checker.close();
 
         setContext(null);
@@ -506,6 +526,11 @@ public class VertxImpl implements VertxInternal {
     }
   }
 
+  @Override
+  public Metrics metricsSPI() {
+    return metrics;
+  }
+
   private void configurePools(VertxOptions options) {
     checker = new BlockedThreadChecker(options.getBlockedThreadCheckPeriod(), options.getMaxEventLoopExecuteTime(),
                                        options.getMaxWorkerExecuteTime());
@@ -529,6 +554,7 @@ public class VertxImpl implements VertxInternal {
 
     boolean cancel() {
       cancelled = true;
+      metrics.timerEnded(timerID, true);
       return future.cancel(false);
     }
 
@@ -537,6 +563,7 @@ public class VertxImpl implements VertxInternal {
       this.timerID = timerID;
       this.handler = runnable;
       this.periodic = periodic;
+      metrics.timerCreated(timerID);
     }
 
     public void run() throws Exception {
@@ -554,6 +581,7 @@ public class VertxImpl implements VertxInternal {
 
     private void cleanupNonPeriodic() {
       VertxImpl.this.timeouts.remove(timerID);
+      metrics.timerEnded(timerID, false);
       ContextImpl context = getContext();
       context.removeCloseHook(this);
     }

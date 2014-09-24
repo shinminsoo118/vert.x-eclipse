@@ -50,6 +50,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.impl.LoggerFactory;
+import io.vertx.core.metrics.spi.EventBusMetrics;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.NetServer;
@@ -62,6 +63,7 @@ import io.vertx.core.spi.cluster.ChoosableIterable;
 import io.vertx.core.spi.cluster.ClusterManager;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.UUID;
@@ -69,9 +71,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -113,6 +117,7 @@ public class EventBusImpl implements EventBus {
   private final ClusterManager clusterMgr;
   private final AtomicLong replySequence = new AtomicLong(0);
   private final ProxyFactory proxyFactory;
+  private final EventBusMetrics metrics;
   private Registration pingRegistration;
   private MessageCodec[] systemCodecs;
 
@@ -124,6 +129,7 @@ public class EventBusImpl implements EventBus {
     this.subs = null;
     this.clusterMgr = null;
     this.proxyFactory = new ProxyFactory(this, proxyOperationTimeout);
+    this.metrics = vertx.metricsSPI().register(this);
     setPingHandler();
     putStandardCodecs();
   }
@@ -133,6 +139,7 @@ public class EventBusImpl implements EventBus {
     this.vertx = vertx;
     this.clusterMgr = clusterManager;
     this.proxyFactory = new ProxyFactory(this, proxyOperationTimeout);
+    this.metrics = vertx.metricsSPI().register(this);
     clusterMgr.<String, ServerID>getAsyncMultiMap("subs", null, ar -> {
       if (ar.succeeded()) {
         subs = ar.result();
@@ -262,9 +269,22 @@ public class EventBusImpl implements EventBus {
     }
   }
 
+  @Override
+  public String metricBaseName() {
+    return metrics.baseName();
+  }
+
+  @Override
+  public Map<String, JsonObject> metrics(TimeUnit rateUnit, TimeUnit durationUnit) {
+    String name = metricBaseName();
+    return vertx.metrics(rateUnit, durationUnit).entrySet().stream()
+      .filter(e -> e.getKey().startsWith(name))
+      .collect(Collectors.toMap(e -> e.getKey().substring(name.length() + 1), Map.Entry::getValue));
+  }
+
   <T> void sendReply(ServerID dest, MessageImpl message, DeliveryOptions options, Handler<AsyncResult<Message<T>>> replyHandler) {
     if (message.address() == null) {
-      sendNoHandlersFailure(replyHandler);
+      sendNoHandlersFailure(null, replyHandler);
     } else {
       sendOrPub(dest, message, options, replyHandler);
     }
@@ -444,6 +464,7 @@ public class EventBusImpl implements EventBus {
   private <T> void sendOrPub(ServerID replyDest, MessageImpl message, DeliveryOptions options,
                              Handler<AsyncResult<Message<T>>> replyHandler) {
     checkStarted();
+    metrics.messageSent(message.address(), !message.send());
     ContextImpl context = vertx.getOrCreateContext();
     Handler<Message<T>> simpleReplyHandler = null;
     try {
@@ -455,6 +476,7 @@ public class EventBusImpl implements EventBus {
         timeoutID = vertx.setTimer(options.getSendTimeout(), timerID -> {
           log.warn("Message reply handler timed out as no reply was received - it will be removed");
           refReg.get().unregister();
+          metrics.replyFailure(message.address(), ReplyFailure.TIMEOUT);
           replyHandler.handle(Future.completedFuture(new ReplyException(ReplyFailure.TIMEOUT, "Timed out waiting for reply")));
         });
         simpleReplyHandler = convertHandler(replyHandler);
@@ -502,7 +524,9 @@ public class EventBusImpl implements EventBus {
       Future<Message<T>> result;
       if (reply.body() instanceof ReplyException) {
         // This is kind of clunky - but hey-ho
-        result = Future.completedFuture((ReplyException) reply.body());
+        ReplyException exception = (ReplyException) reply.body();
+        metrics.replyFailure(reply.address(), exception.failureType());
+        result = Future.completedFuture(exception);
       } else {
         result = Future.completedFuture(reply);
       }
@@ -535,10 +559,10 @@ public class EventBusImpl implements EventBus {
         // Propagate the information
         subs.add(address, serverID, registration::setResult);
       } else {
-        registration.result = Future.completedFuture();
+        registration.setResult(Future.completedFuture());
       }
     } else {
-      registration.result = Future.completedFuture();
+      registration.setResult(Future.completedFuture());
     }
 
     handlers.list.add(holder);
@@ -694,7 +718,7 @@ public class EventBusImpl implements EventBus {
     } else {
       // no handlers
       if (replyHandler != null) {
-        sendNoHandlersFailure(replyHandler);
+        sendNoHandlersFailure(msg.address(), replyHandler);
         if (timeoutID != -1) {
           vertx.cancelTimer(timeoutID);
         }
@@ -705,10 +729,11 @@ public class EventBusImpl implements EventBus {
     }
   }
 
-  private <T> void sendNoHandlersFailure(Handler<AsyncResult<Message<T>>> handler) {
+  private <T> void sendNoHandlersFailure(String address, Handler<AsyncResult<Message<T>>> handler) {
     vertx.runOnContext(new Handler<Void>() {
       @Override
       public void handle(Void v) {
+        metrics.replyFailure(address, ReplyFailure.NO_HANDLERS);
         handler.handle(Future.completedFuture(new ReplyException(ReplyFailure.NO_HANDLERS)));
       }
     });
@@ -725,6 +750,7 @@ public class EventBusImpl implements EventBus {
       // before it was received
       try {
         if (!holder.removed) {
+          metrics.messageReceived(msg.address());
           holder.handler.handle(copied);
         }
       } finally {
@@ -938,15 +964,23 @@ public class EventBusImpl implements EventBus {
     @Override
     public void unregister(Handler<AsyncResult<Void>> completionHandler) {
       Objects.requireNonNull(completionHandler);
-      unregisterHandler(address, handler, completionHandler);
+      unregisterHandler(address, handler, ar -> {
+        metrics.handlerUnregistered(address);
+        completionHandler.handle(ar);
+      });
     }
 
     private synchronized void setResult(AsyncResult<Void> result) {
       this.result = result;
       if (completionHandler != null) {
+        if (result.succeeded()) {
+          metrics.handlerRegistered(address);
+        }
         completionHandler.handle(result);
       } else if (result.failed()) {
         log.error("Failed to propagate registration for handler " + handler + " and address " + address);
+      } else {
+        metrics.handlerRegistered(address);
       }
     }
   }

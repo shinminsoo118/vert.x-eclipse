@@ -30,6 +30,7 @@ import io.vertx.core.datagram.DatagramSocketOptions;
 import io.vertx.core.impl.ContextImpl;
 
 import io.vertx.core.impl.VertxInternal;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.ConnectionBase;
 import io.vertx.core.net.impl.SocketAddressImpl;
@@ -39,6 +40,9 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:nmaurer@redhat.com">Norman Maurer</a>
@@ -50,7 +54,7 @@ public class DatagramSocketImpl extends ConnectionBase implements DatagramSocket
   public DatagramSocketImpl(VertxInternal vertx,
                             DatagramSocketOptions options) {
     super(vertx, createChannel(options.isIpV6() ? io.vertx.core.datagram.impl.InternetProtocolFamily.IPv6 : io.vertx.core.datagram.impl.InternetProtocolFamily.IPv4,
-          DatagramSocketOptions.copiedOptions(options)), vertx.getOrCreateContext());
+          DatagramSocketOptions.copiedOptions(options)), vertx.getOrCreateContext(), vertx.metricsSPI().register(null, options));
     ContextImpl creatingContext = vertx.getContext();
     if (creatingContext != null && creatingContext.isMultiThreaded()) {
       throw new IllegalStateException("Cannot use DatagramSocket in a multi-threaded worker verticle");
@@ -162,7 +166,12 @@ public class DatagramSocketImpl extends ConnectionBase implements DatagramSocket
   private DatagramSocket listen(SocketAddress local, Handler<AsyncResult<DatagramSocket>> handler) {
     InetSocketAddress is = new InetSocketAddress(local.hostAddress(), local.hostPort());
     ChannelFuture future = channel().bind(is);
-    addListener(future, handler);
+    addListener(future, ar -> {
+      if (ar.succeeded()) {
+        metrics.listening(localAddress());
+      }
+      handler.handle(ar);
+    });
     return this;
   }
 
@@ -190,6 +199,8 @@ public class DatagramSocketImpl extends ConnectionBase implements DatagramSocket
   public DatagramSocket send(Buffer packet, int port, String host, Handler<AsyncResult<DatagramSocket>> handler) {
     ChannelFuture future = channel().writeAndFlush(new DatagramPacket(packet.getByteBuf(), new InetSocketAddress(host, port)));
     addListener(future, handler);
+    if (metrics.isEnabled()) metrics.bytesWritten(new SocketAddressImpl(port, host), packet.length());
+
     return this;
   }
 
@@ -207,10 +218,24 @@ public class DatagramSocketImpl extends ConnectionBase implements DatagramSocket
   public void close(final Handler<AsyncResult<Void>> handler) {
     // make sure everything is flushed out on close
     endReadAndFlush();
+    metrics.closed();
     ChannelFuture future = channel.close();
     if (handler != null) {
       future.addListener(new DatagramChannelFutureListener<>(null, handler, vertx, context));
     }
+  }
+
+  @Override
+  public String metricBaseName() {
+    return metrics.baseName();
+  }
+
+  @Override
+  public Map<String, JsonObject> metrics(TimeUnit rateUnit, TimeUnit durationUnit) {
+    String name = metricBaseName();
+    return vertx.metrics(rateUnit, durationUnit).entrySet().stream()
+      .filter(e -> e.getKey().startsWith(name))
+      .collect(Collectors.toMap(e -> e.getKey().substring(name.length() + 1), Map.Entry::getValue));
   }
 
   protected DatagramChannel channel() {
@@ -279,6 +304,7 @@ public class DatagramSocketImpl extends ConnectionBase implements DatagramSocket
   }
 
   void handlePacket(io.vertx.core.datagram.DatagramPacket packet) {
+    metrics.bytesRead(packet.sender(), packet.data().length());
     if (packetHandler != null) {
       packetHandler.handle(packet);
     }

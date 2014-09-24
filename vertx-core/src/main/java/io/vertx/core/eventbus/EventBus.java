@@ -21,6 +21,7 @@ import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.core.metrics.Measured;
 
 /**
  * A distributed lightweight event bus which can encompass multiple vert.x instances.
@@ -52,9 +53,9 @@ import io.vertx.core.Handler;
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
 @VertxGen
-public interface EventBus {
+public interface EventBus extends Measured {
 
-	/**
+  /**
 	 * Close the EventBus and release all resources. 
 	 * 
 	 * @param completionHandler

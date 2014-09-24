@@ -55,6 +55,8 @@ public class HttpClientRequestImpl implements HttpClientRequest {
   private Handler<Void> continueHandler;
   private final VertxInternal vertx;
   private boolean chunked;
+  private String method;
+  private String uri;
   private ClientConnection conn;
   private Handler<Void> drainHandler;
   private Handler<Throwable> exceptionHandler;
@@ -76,6 +78,8 @@ public class HttpClientRequestImpl implements HttpClientRequest {
     this.client = client;
     this.request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), options.getRequestURI(), false);
     this.chunked = false;
+    this.method = request.getMethod().toString();
+    this.uri = request.getUri();
     this.respHandler = respHandler;
     this.vertx = vertx;
   }
@@ -93,6 +97,16 @@ public class HttpClientRequestImpl implements HttpClientRequest {
   @Override
   public boolean isChunked() {
     return chunked;
+  }
+
+  @Override
+  public String method() {
+    return method;
+  }
+
+  @Override
+  public String uri() {
+    return uri;
   }
 
   @Override
@@ -362,6 +376,8 @@ public class HttpClientRequestImpl implements HttpClientRequest {
         // we also need to write the head so optimize this and write all out in once
         writeHeadWithContent(pending, true);
 
+        if (conn.metrics.isEnabled()) conn.metrics.bytesWritten(conn.remoteAddress(), written);
+
         conn.endRequest();
       } else {
         writeHeadWithContent(pending, false);
@@ -370,6 +386,9 @@ public class HttpClientRequestImpl implements HttpClientRequest {
       if (completed) {
         // we also need to write the head so optimize this and write all out in once
         writeHeadWithContent(Unpooled.EMPTY_BUFFER, true);
+
+        if (conn.metrics.isEnabled()) conn.metrics.bytesWritten(conn.remoteAddress(), written);
+
         conn.endRequest();
       } else {
         if (writeHead) {
@@ -460,6 +479,8 @@ public class HttpClientRequestImpl implements HttpClientRequest {
         }
       }
       if (end) {
+        if (conn.metrics.isEnabled()) conn.metrics.bytesWritten(conn.remoteAddress(), written);
+
         conn.endRequest();
       }
     }
