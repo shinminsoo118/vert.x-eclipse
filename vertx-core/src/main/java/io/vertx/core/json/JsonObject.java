@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -50,7 +51,8 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>>, ClusterS
 
   public String getString(String key) {
     Objects.requireNonNull(key);
-    return (String)map.get(key);
+    CharSequence cs = (CharSequence)map.get(key);
+    return cs == null ? null : cs.toString();
   }
 
   public Integer getInteger(String key) {
@@ -137,8 +139,8 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>>, ClusterS
 
   public String getString(String key, String def) {
     Objects.requireNonNull(key);
-    Object val = map.get(key);
-    return val != null || map.containsKey(key) ? (String)val : def;
+    CharSequence cs = (CharSequence)map.get(key);
+    return cs != null || map.containsKey(key) ? cs == null ? null : cs.toString() : def;
   }
 
   public Integer getInteger(String key, Integer def) {
@@ -238,44 +240,48 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>>, ClusterS
     return map.containsKey(key);
   }
 
+  public Set<String> fieldNames() {
+    return map.keySet();
+  }
+
+  public JsonObject put(String key, CharSequence value) {
+    Objects.requireNonNull(key);
+    map.put(key, value == null ? null : value.toString());
+    return this;
+  }
+
   public JsonObject put(String key, String value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, Integer value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, Long value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, Double value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, Float value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, Boolean value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
@@ -288,22 +294,26 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>>, ClusterS
 
   public JsonObject put(String key, JsonObject value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, JsonArray value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
     map.put(key, value);
     return this;
   }
 
   public JsonObject put(String key, byte[] value) {
     Objects.requireNonNull(key);
-    Objects.requireNonNull(value);
-    map.put(key, Base64.getEncoder().encodeToString(value));
+    map.put(key, value == null ? null : Base64.getEncoder().encodeToString(value));
+    return this;
+  }
+
+  public JsonObject put(String key, Object value) {
+    Objects.requireNonNull(key);
+    value = Json.checkAndCopy(value, false);
+    map.put(key, value);
     return this;
   }
 
@@ -328,7 +338,7 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>>, ClusterS
     Map<String, Object> copiedMap = new HashMap<>(map.size());
     for (Map.Entry<String, Object> entry: map.entrySet()) {
       Object val = entry.getValue();
-      val = Json.checkAndConvertVal(val);
+      val = Json.checkAndCopy(val, true);
       copiedMap.put(entry.getKey(), val);
     }
     return new JsonObject(copiedMap);

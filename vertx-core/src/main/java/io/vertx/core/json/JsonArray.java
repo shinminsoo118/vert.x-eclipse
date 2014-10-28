@@ -48,7 +48,8 @@ public class JsonArray implements Iterable<Object>, ClusterSerializable {
   }
 
   public String getString(int pos) {
-    return (String)list.get(pos);
+    CharSequence cs = (CharSequence)list.get(pos);
+    return cs == null ? null : cs.toString();
   }
 
   public Integer getInteger(int pos) {
@@ -130,6 +131,12 @@ public class JsonArray implements Iterable<Object>, ClusterSerializable {
 
   public boolean hasNull(int pos) {
     return list.get(pos) == null;
+  }
+
+  public JsonArray add(CharSequence value) {
+    Objects.requireNonNull(value);
+    list.add(value.toString());
+    return this;
   }
 
   public JsonArray add(String value) {
@@ -241,7 +248,7 @@ public class JsonArray implements Iterable<Object>, ClusterSerializable {
   public JsonArray copy() {
     List<Object> copiedList = new ArrayList<>(list.size());
     for (Object val: list) {
-      val = Json.checkAndConvertVal(val);
+      val = Json.checkAndCopy(val, true);
       copiedList.add(val);
     }
     return new JsonArray(copiedList);

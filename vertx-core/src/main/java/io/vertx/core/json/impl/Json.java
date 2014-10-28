@@ -29,6 +29,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -54,21 +56,39 @@ public class Json {
     prettyMapper.registerModule(module);
   }
 
-  public static Object checkAndConvertVal(Object val) {
-    if (val instanceof Number) {
+  public static Object checkAndCopy(Object val, boolean copy) {
+    if (val == null) {
+      // OK
+    } else if (val instanceof Number && !(val instanceof BigDecimal)) {
       // OK
     } else if (val instanceof Boolean) {
       // OK
     } else if (val instanceof String) {
       // OK
+    } else if (val instanceof CharSequence) {
+      val = val.toString();
     } else if (val instanceof JsonObject) {
-      val = ((JsonObject)val).copy();
+      if (copy) {
+        val = ((JsonObject) val).copy();
+      }
     } else if (val instanceof JsonArray) {
-      val = ((JsonArray) val).copy();
+      if (copy) {
+        val = ((JsonArray) val).copy();
+      }
     } else if (val instanceof Map) {
-      val = (new JsonObject((Map)val)).copy();
+      if (copy) {
+        val = (new JsonObject((Map)val)).copy();
+      } else {
+        val = new JsonObject((Map)val);
+      }
     } else if (val instanceof List) {
-      val = (new JsonArray((List)val)).copy();
+      if (copy) {
+        val = (new JsonArray((List)val)).copy();
+      } else {
+        val = new JsonArray((List)val);
+      }
+    } else if (val instanceof byte[]) {
+      val = Base64.getEncoder().encodeToString((byte[])val);
     } else {
       throw new IllegalStateException("Illegal value in JsonObject: " + val);
     }

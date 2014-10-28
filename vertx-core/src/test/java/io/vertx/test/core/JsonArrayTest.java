@@ -376,6 +376,18 @@ public class JsonArrayTest {
   }
 
   @Test
+  public void testAddCharSequence() {
+    assertSame(jsonArray, jsonArray.add(new StringBuilder("bar")));
+    assertEquals("bar", jsonArray.getString(0));
+    try {
+      jsonArray.add((CharSequence) null);
+      fail();
+    } catch (NullPointerException e) {
+      // OK
+    }
+  }
+
+  @Test
   public void testAddInteger() {
     assertSame(jsonArray, jsonArray.add(123));
     assertEquals(Integer.valueOf(123), jsonArray.getInteger(0));
@@ -608,19 +620,20 @@ public class JsonArrayTest {
     jsonArray.add(123);
     JsonObject obj = new JsonObject().put("foo", "bar");
     jsonArray.add(obj);
+    jsonArray.add(new StringBuilder("eeek"));
     JsonArray copy = jsonArray.copy();
+    assertEquals("eeek", copy.getString(3));
     assertNotSame(jsonArray, copy);
     assertEquals(jsonArray, copy);
-    assertEquals(3, copy.size());
+    assertEquals(4, copy.size());
     assertEquals("foo", copy.getString(0));
     assertEquals(Integer.valueOf(123), copy.getInteger(1));
     assertEquals(obj, copy.getJsonObject(2));
     assertNotSame(obj, copy.getJsonObject(2));
-
     copy.add("foo");
-    assertEquals(3, jsonArray.size());
+    assertEquals(4, jsonArray.size());
     jsonArray.add("bar");
-    assertEquals(4, copy.size());
+    assertEquals(5, copy.size());
   }
 
   @Test
@@ -789,6 +802,19 @@ public class JsonArrayTest {
     JsonArray arr = new JsonArray(list);
     assertEquals("foo", arr.getString(0));
     assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertSame(list, arr.getList());
+  }
+
+  @Test
+  public void testCreateFromListCharSequence() {
+    List<Object> list = new ArrayList<>();
+    list.add("foo");
+    list.add(123);
+    list.add(new StringBuilder("eek"));
+    JsonArray arr = new JsonArray(list);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertEquals("eek", arr.getString(2));
     assertSame(list, arr.getList());
   }
 
