@@ -579,21 +579,21 @@ public class ClusterWideMapTest extends VertxTestBase {
     getVertx().sharedData().<K, V>getClusterWideMap("foo", ar -> {
       assertTrue(ar.succeeded());
       AsyncMap<K, V> map = ar.result();
-      map.putIfAbsent(k, v, ar2 -> {
-        assertTrue(ar2.succeeded());
-        assertNull(ar2.result());
-        getVertx().sharedData().<K, V>getClusterWideMap("foo", ar3 -> {
-          AsyncMap<K, V> map2 = ar.result();
-          map2.get(k, ar4 -> {
-            assertEquals(v, ar4.result());
-            map.putIfAbsent(k, v, ar5 -> {
-              assertTrue(ar5.succeeded()); 
-              assertEquals(v, ar5.result());
-              testComplete();
-            });                                    
+        map.putIfAbsent(k, v, ar2 -> {
+          assertTrue(ar2.succeeded());
+          assertNull(ar2.result());
+          getVertx().sharedData().<K, V>getClusterWideMap("foo", ar3 -> {
+            AsyncMap<K, V> map2 = ar.result();
+            map2.get(k, ar4 -> {
+              assertEquals(v, ar4.result());
+              map.putIfAbsent(k, v, ar5 -> {
+                assertTrue(ar5.succeeded());
+                assertEquals(v, ar5.result());
+                testComplete();
+              });
+            });
           });
         });
-      });
     });
     await();
   }

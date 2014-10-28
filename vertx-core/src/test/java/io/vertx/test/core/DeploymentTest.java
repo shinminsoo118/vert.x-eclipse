@@ -139,15 +139,13 @@ public class DeploymentTest extends VertxTestBase {
     json.put("isolationGroup", isolationGroup);
     json.put("ha", ha);
     json.put("extraClasspath", new JsonArray(cp));
-    DeploymentOptions copy = new DeploymentOptions(json);
-    assertEquals(worker, copy.isWorker());
-    assertEquals(multiThreaded, copy.isMultiThreaded());
-    assertEquals(isolationGroup, copy.getIsolationGroup());
-    assertNotSame(config, copy.getConfig());
-    assertEquals("bar", copy.getConfig().getString("foo"));
-    assertEquals(ha, copy.isHA());
-    assertEquals(cp, copy.getExtraClasspath());
-    assertNotSame(cp, copy.getExtraClasspath());
+    DeploymentOptions options = new DeploymentOptions(json);
+    assertEquals(worker, options.isWorker());
+    assertEquals(multiThreaded, options.isMultiThreaded());
+    assertEquals(isolationGroup, options.getIsolationGroup());
+    assertEquals("bar", options.getConfig().getString("foo"));
+    assertEquals(ha, options.isHA());
+    assertEquals(cp, options.getExtraClasspath());
   }
 
   @Test
@@ -171,11 +169,9 @@ public class DeploymentTest extends VertxTestBase {
     assertEquals(worker, copy.isWorker());
     assertEquals(multiThreaded, copy.isMultiThreaded());
     assertEquals(isolationGroup, copy.getIsolationGroup());
-    assertNotSame(config, copy.getConfig());
     assertEquals("bar", copy.getConfig().getString("foo"));
     assertEquals(ha, copy.isHA());
     assertEquals(cp, copy.getExtraClasspath());
-    assertNotSame(cp, copy.getExtraClasspath());
   }
 
   @Test

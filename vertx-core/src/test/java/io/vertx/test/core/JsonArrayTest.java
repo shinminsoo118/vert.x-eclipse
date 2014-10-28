@@ -16,14 +16,19 @@
 
 package io.vertx.test.core;
 
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
@@ -499,8 +504,8 @@ public class JsonArrayTest {
     assertFalse(jsonArray.contains("eek"));
     assertFalse(jsonArray.contains(false));
     assertFalse(jsonArray.contains(321));
-    assertFalse(jsonArray.contains(new JsonObject()));
-    assertFalse(jsonArray.contains(new JsonArray()));
+    assertFalse(jsonArray.contains(new JsonObject().put("blah", "flib")));
+    assertFalse(jsonArray.contains(new JsonArray().add("oob")));
     assertTrue(jsonArray.contains("wibble"));
     assertTrue(jsonArray.contains(true));
     assertTrue(jsonArray.contains(123));
@@ -572,6 +577,9 @@ public class JsonArrayTest {
     entry = iter.next();
     assertEquals(obj, entry);
     assertFalse(iter.hasNext());
+    iter.remove();
+    assertFalse(jsonArray.contains(obj));
+    assertEquals(2, jsonArray.size());
   }
 
   @Test
@@ -612,18 +620,246 @@ public class JsonArrayTest {
     copy.add("foo");
     assertEquals(3, jsonArray.size());
     jsonArray.add("bar");
-    assertEquals(3, copy.size());
+    assertEquals(4, copy.size());
   }
 
-  // TODO
-  // test encode and encodePrettily
-  // test create from list
-  // test copy checks types
-  // test created from list with invalid objects
-  // test create from list with mixed lists and jsonarray
-  //
+  @Test
+  public void testInvalidValsOnCopy() {
+    List<Object> invalid = new ArrayList<>();
+    invalid.add(new SomeClass());
+    JsonArray arr = new JsonArray(invalid);
+    try {
+      arr.copy();
+      fail();
+    } catch (IllegalStateException e) {
+      // OK
+    }
+  }
 
+  @Test
+  public void testInvalidValsOnCopy2() {
+    List<Object> invalid = new ArrayList<>();
+    List<Object> invalid2 = new ArrayList<>();
+    invalid2.add(new SomeClass());
+    invalid.add(invalid2);
+    JsonArray arr = new JsonArray(invalid);
+    try {
+      arr.copy();
+      fail();
+    } catch (IllegalStateException e) {
+      // OK
+    }
+  }
 
+  @Test
+  public void testInvalidValsOnCopy3() {
+    List<Object> invalid = new ArrayList<>();
+    Map<String, Object> invalid2 = new HashMap<>();
+    invalid2.put("foo", new SomeClass());
+    invalid.add(invalid2);
+    JsonArray arr = new JsonArray(invalid);
+    try {
+      arr.copy();
+      fail();
+    } catch (IllegalStateException e) {
+      // OK
+    }
+  }
 
+  class SomeClass {
+  }
+
+  @Test
+  public void testEncode() throws Exception {
+    jsonArray.add("foo");
+    jsonArray.add(123);
+    jsonArray.add(1234l);
+    jsonArray.add(1.23f);
+    jsonArray.add(2.34d);
+    jsonArray.add(true);
+    byte[] bytes = TestUtils.randomByteArray(10);
+    jsonArray.add(bytes);
+    jsonArray.addNull();
+    jsonArray.add(new JsonObject().put("foo", "bar"));
+    jsonArray.add(new JsonArray().add("foo").add(123));
+    String strBytes = Base64.getEncoder().encodeToString(bytes);
+    String expected = "[\"foo\",123,1234,1.23,2.34,true,\"" + strBytes + "\",null,{\"foo\":\"bar\"},[\"foo\",123]]";
+    String json = jsonArray.encode();
+    assertEquals(expected, json);
+  }
+
+  @Test
+  public void testDecode() {
+    byte[] bytes = TestUtils.randomByteArray(10);
+    String strBytes = Base64.getEncoder().encodeToString(bytes);
+    String json = "[\"foo\",123,1234,1.23,2.34,true,\"" + strBytes + "\",null,{\"foo\":\"bar\"},[\"foo\",123]]";
+    JsonArray arr = new JsonArray(json);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertEquals(Long.valueOf(1234l), arr.getLong(2));
+    assertEquals(Float.valueOf(1.23f), arr.getFloat(3));
+    assertEquals(Double.valueOf(2.34d), arr.getDouble(4));
+    assertEquals(true, arr.getBoolean(5));
+    assertTrue(TestUtils.byteArraysEqual(bytes, arr.getBinary(6)));
+    assertTrue(arr.hasNull(7));
+    JsonObject obj = arr.getJsonObject(8);
+    assertEquals("bar", obj.getString("foo"));
+    JsonArray arr2 = arr.getJsonArray(9);
+    assertEquals("foo", arr2.getString(0));
+    assertEquals(Integer.valueOf(123), arr2.getInteger(1));
+  }
+
+  @Test
+  public void testEncodePrettily() throws Exception {
+    jsonArray.add("foo");
+    jsonArray.add(123);
+    jsonArray.add(1234l);
+    jsonArray.add(1.23f);
+    jsonArray.add(2.34d);
+    jsonArray.add(true);
+    byte[] bytes = TestUtils.randomByteArray(10);
+    jsonArray.add(bytes);
+    jsonArray.addNull();
+    jsonArray.add(new JsonObject().put("foo", "bar"));
+    jsonArray.add(new JsonArray().add("foo").add(123));
+    String strBytes = Base64.getEncoder().encodeToString(bytes);
+    String expected = "[ \"foo\", 123, 1234, 1.23, 2.34, true, \"" + strBytes + "\", null, {\n" +
+      "  \"foo\" : \"bar\"\n" +
+      "}, [ \"foo\", 123 ] ]";
+    String json = jsonArray.encodePrettily();
+    assertEquals(expected, json);
+  }
+
+  @Test
+  public void testToString() {
+    jsonArray.add("foo").add(123);
+    assertEquals(jsonArray.encode(), jsonArray.toString());
+  }
+
+  // Strict JSON doesn't allow comments but we do so users can add comments to config files etc
+  @Test
+  public void testCommentsInJson() {
+    String jsonWithComments =
+      "// single line comment\n" +
+        "/*\n" +
+        "  This is a multi \n" +
+        "  line comment\n" +
+        "*/\n" +
+        "[\n" +
+        "// another single line comment this time inside the JSON array itself\n" +
+        "  \"foo\", \"bar\" // and a single line comment at end of line \n" +
+        "/*\n" +
+        "  This is a another multi \n" +
+        "  line comment this time inside the JSON array itself\n" +
+        "*/\n" +
+        "]";
+    JsonArray json = new JsonArray(jsonWithComments);
+    assertEquals("[\"foo\",\"bar\"]", json.encode());
+  }
+
+  @Test
+  public void testInvalidJson() {
+    String invalid = "qiwjdoiqwjdiqwjd";
+    try {
+      new JsonArray(invalid);
+      fail();
+    } catch (DecodeException e) {
+      // OK
+    }
+  }
+
+  @Test
+  public void testGetList() {
+    JsonObject obj = new JsonObject().put("quux", "wibble");
+    jsonArray.add("foo").add(123).add(obj);
+    List<Object> list = jsonArray.getList();
+    list.remove("foo");
+    assertFalse(jsonArray.contains("foo"));
+    list.add("floob");
+    assertTrue(jsonArray.contains("floob"));
+    assertSame(obj, list.get(1));
+    obj.remove("quux");
+  }
+
+  @Test
+  public void testCreateFromList() {
+    List<Object> list = new ArrayList<>();
+    list.add("foo");
+    list.add(123);
+    JsonArray arr = new JsonArray(list);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertSame(list, arr.getList());
+  }
+
+  @Test
+  public void testCreateFromListNestedJsonObject() {
+    List<Object> list = new ArrayList<>();
+    list.add("foo");
+    list.add(123);
+    JsonObject obj = new JsonObject().put("blah", "wibble");
+    list.add(obj);
+    JsonArray arr = new JsonArray(list);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertSame(list, arr.getList());
+    assertSame(obj, arr.getJsonObject(2));
+  }
+
+  @Test
+  public void testCreateFromListNestedMap() {
+    List<Object> list = new ArrayList<>();
+    list.add("foo");
+    list.add(123);
+    Map<String, Object> map = new HashMap<>();
+    map.put("blah", "wibble");
+    list.add(map);
+    JsonArray arr = new JsonArray(list);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertSame(list, arr.getList());
+    JsonObject obj = arr.getJsonObject(2);
+    assertSame(map, obj.getMap());
+  }
+
+  @Test
+  public void testCreateFromListNestedJsonArray() {
+    List<Object> list = new ArrayList<>();
+    list.add("foo");
+    list.add(123);
+    JsonArray arr2 = new JsonArray().add("blah").add("wibble");
+    list.add(arr2);
+    JsonArray arr = new JsonArray(list);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertSame(list, arr.getList());
+    assertSame(arr2, arr.getJsonArray(2));
+  }
+
+  @Test
+  public void testCreateFromListNestedList() {
+    List<Object> list = new ArrayList<>();
+    list.add("foo");
+    list.add(123);
+    List<Object> list2 = new ArrayList<>();
+    list2.add("blah");
+    list2.add("wibble");
+    list.add(list2);
+    JsonArray arr = new JsonArray(list);
+    assertEquals("foo", arr.getString(0));
+    assertEquals(Integer.valueOf(123), arr.getInteger(1));
+    assertSame(list, arr.getList());
+    JsonArray arr2 = arr.getJsonArray(2);
+    assertSame(list2, arr2.getList());
+  }
+
+  @Test
+  public void testClusterSerializable() {
+    jsonArray.add("foo").add(123);
+    Buffer buff = jsonArray.writeToBuffer();
+    JsonArray deserialized = new JsonArray();
+    deserialized.readFromBuffer(buff);
+    assertEquals(jsonArray, deserialized);
+  }
 
 }

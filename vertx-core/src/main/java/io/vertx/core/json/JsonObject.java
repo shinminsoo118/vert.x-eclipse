@@ -16,7 +16,9 @@
 
 package io.vertx.core.json;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.impl.Json;
+import io.vertx.core.shareddata.impl.ClusterSerializable;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -30,12 +32,12 @@ import java.util.stream.Stream;
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class JsonObject implements Iterable<Map.Entry<String, Object>> {
+public class JsonObject implements Iterable<Map.Entry<String, Object>>, ClusterSerializable {
 
-  private final Map<String, Object> map;
+  private Map<String, Object> map;
 
   public JsonObject(String json) {
-    map = Json.decodeValue(json, Map.class);
+    fromJson(json);
   }
 
   public JsonObject() {
@@ -378,6 +380,27 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>> {
     return map.hashCode();
   }
 
+  @Override
+  public Buffer writeToBuffer() {
+    String encoded = encode();
+    byte[] bytes = encoded.getBytes();
+    Buffer buffer = Buffer.buffer(bytes.length + 4);
+    buffer.appendInt(bytes.length);
+    buffer.appendBytes(bytes);
+    return buffer;
+  }
+
+  @Override
+  public void readFromBuffer(Buffer buffer) {
+    int length = buffer.getInt(0);
+    String encoded = buffer.getString(4, 4 + length);
+    fromJson(encoded);
+  }
+
+  private void fromJson(String json) {
+    map = Json.decodeValue(json, Map.class);
+  }
+
   private class Iter implements Iterator<Map.Entry<String, Object>> {
 
     final Iterator<Map.Entry<String, Object>> mapIter;
@@ -400,6 +423,11 @@ public class JsonObject implements Iterable<Map.Entry<String, Object>> {
         entry.setValue(new JsonArray((List) entry.getValue()));
       }
       return entry;
+    }
+
+    @Override
+    public void remove() {
+      mapIter.remove();
     }
   }
 

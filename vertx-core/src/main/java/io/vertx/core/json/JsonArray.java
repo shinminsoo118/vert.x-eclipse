@@ -16,7 +16,9 @@
 
 package io.vertx.core.json;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.impl.Json;
+import io.vertx.core.shareddata.impl.ClusterSerializable;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -29,12 +31,12 @@ import java.util.stream.Stream;
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class JsonArray implements Iterable<Object> {
+public class JsonArray implements Iterable<Object>, ClusterSerializable {
 
-  private final List<Object> list;
+  private List<Object> list;
 
   public JsonArray(String json) {
-    list = Json.decodeValue(json, List.class);
+    fromJson(json);
   }
 
   public JsonArray() {
@@ -264,6 +266,27 @@ public class JsonArray implements Iterable<Object> {
     return list.hashCode();
   }
 
+  @Override
+  public Buffer writeToBuffer() {
+    String encoded = encode();
+    byte[] bytes = encoded.getBytes();
+    Buffer buffer = Buffer.buffer(bytes.length + 4);
+    buffer.appendInt(bytes.length);
+    buffer.appendBytes(bytes);
+    return buffer;
+  }
+
+  @Override
+  public void readFromBuffer(Buffer buffer) {
+    int length = buffer.getInt(0);
+    String encoded = buffer.getString(4, 4 + length);
+    fromJson(encoded);
+  }
+
+  private void fromJson(String json) {
+    list = Json.decodeValue(json, List.class);
+  }
+
   private class Iter implements Iterator<Object> {
 
     final Iterator<Object> listIter;
@@ -286,6 +309,11 @@ public class JsonArray implements Iterable<Object> {
         val = new JsonArray((List)val);
       }
       return val;
+    }
+
+    @Override
+    public void remove() {
+      listIter.remove();
     }
   }
 

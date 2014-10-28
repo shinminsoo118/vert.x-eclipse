@@ -16,12 +16,14 @@
 
 package io.vertx.test.core;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -1132,6 +1134,9 @@ public class JsonObjectTest {
     assertEquals("wibble", entry.getKey());
     assertEquals(obj, entry.getValue());
     assertFalse(iter.hasNext());
+    iter.remove();
+    assertFalse(obj.containsKey("wibble"));
+    assertEquals(2, jsonObject.size());
   }
 
   @Test
@@ -1183,9 +1188,39 @@ public class JsonObjectTest {
   }
 
   @Test
-  public void testInvalidValsOnCopy() {
+  public void testInvalidValsOnCopy1() {
     Map<String, Object> invalid = new HashMap<>();
     invalid.put("foo", new SomeClass());
+    JsonObject object = new JsonObject(invalid);
+    try {
+      object.copy();
+      fail();
+    } catch (IllegalStateException e) {
+      // OK
+    }
+  }
+
+  @Test
+  public void testInvalidValsOnCopy2() {
+    Map<String, Object> invalid = new HashMap<>();
+    Map<String, Object> invalid2 = new HashMap<>();
+    invalid2.put("foo", new SomeClass());
+    invalid.put("bar",invalid2);
+    JsonObject object = new JsonObject(invalid);
+    try {
+      object.copy();
+      fail();
+    } catch (IllegalStateException e) {
+      // OK
+    }
+  }
+
+  @Test
+  public void testInvalidValsOnCopy3() {
+    Map<String, Object> invalid = new HashMap<>();
+    List<Object> invalid2 = new ArrayList<>();
+    invalid2.add(new SomeClass());
+    invalid.put("bar",invalid2);
     JsonObject object = new JsonObject(invalid);
     try {
       object.copy();
@@ -1213,6 +1248,7 @@ public class JsonObjectTest {
     assertFalse(map.containsKey("quux"));
     jsonObject.put("wooble", "plink");
     assertTrue(map.containsKey("wooble"));
+    assertSame(obj, map.get("wibble"));
   }
 
   @Test
@@ -1265,6 +1301,15 @@ public class JsonObjectTest {
     JsonObject obj = new JsonObject(map);
     JsonArray nestedRetrieved = obj.getJsonArray("nested");
     assertEquals("foo", nestedRetrieved.getString(0));
+  }
+
+  @Test
+  public void testClusterSerializable() {
+    jsonObject.put("foo", "bar").put("blah", 123);
+    Buffer buff = jsonObject.writeToBuffer();
+    JsonObject deserialized = new JsonObject();
+    deserialized.readFromBuffer(buff);
+    assertEquals(jsonObject, deserialized);
   }
 
   private JsonObject createJsonObject() {
