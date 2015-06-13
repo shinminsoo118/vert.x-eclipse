@@ -181,7 +181,7 @@ public class Starter {
       metricsOptions = new MetricsOptions();
     }
     configureFromSystemProperties(metricsOptions, METRICS_OPTIONS_PROP_PREFIX);
-    options = new VertxOptions().setMetricsOptions(metricsOptions);
+    options = new VertxOptions().setMetricsOptions(metricsOptions).setNettyTransport(VertxOptions.NETTY_TRANSPORT_EPOLL);
     configureFromSystemProperties(options, VERTX_OPTIONS_PROP_PREFIX);
     if (clustered) {
       log.info("Starting clustering...");
