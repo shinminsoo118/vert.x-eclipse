@@ -59,6 +59,7 @@ public class FileResolver {
   private File cacheDir;
 
   public FileResolver(Vertx vertx) {
+    System.out.println("Creating fileresolver");
     this.vertx = vertx;
     String cwdOverride = System.getProperty("vertx.cwd");
     if (cwdOverride != null) {
@@ -182,10 +183,13 @@ public class FileResolver {
   }
 
   private void setupCacheDir() {
+    System.out.println("Setting up cache dir");
     String cacheDirName = ".vertx/file-cache-" + UUID.randomUUID().toString();
     cacheDir = new File(cacheDirName);
     if (!cacheDir.mkdirs()) {
       throw new IllegalStateException("Failed to create cache dir");
+    } else {
+      System.out.println("cache dir setup");
     }
   }
 
