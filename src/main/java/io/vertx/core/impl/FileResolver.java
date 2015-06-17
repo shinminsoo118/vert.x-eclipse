@@ -59,7 +59,6 @@ public class FileResolver {
   private File cacheDir;
 
   public FileResolver(Vertx vertx) {
-    System.out.println("Creating fileresolver");
     this.vertx = vertx;
     String cwdOverride = System.getProperty("vertx.cwd");
     if (cwdOverride != null) {
@@ -71,13 +70,11 @@ public class FileResolver {
   }
 
   public void deleteCacheDir(Handler<AsyncResult<Void>> handler) {
-//    if (cacheDir != null) {
-//      System.out.println("Deleting cache dir: " + cacheDir);
-//      vertx.fileSystem().deleteRecursive(cacheDir.getAbsolutePath(), true, handler);
-//    } else {
-//      handler.handle(Future.succeededFuture());
-//    }
-    handler.handle(Future.succeededFuture());
+    if (cacheDir != null) {
+      vertx.fileSystem().deleteRecursive(cacheDir.getAbsolutePath(), true, handler);
+    } else {
+      handler.handle(Future.succeededFuture());
+    }
   }
 
   public File resolveFile(String fileName) {
@@ -93,10 +90,8 @@ public class FileResolver {
       // Look for it in local file cache
       File cacheFile = new File(cacheDir, fileName);
       if (enableCaching && cacheFile.exists()) {
-        //System.out.println("Found in cache dir");
         return cacheFile;
       }
-      System.out.println("Not found in cache dir");
       // Look for file on classpath
       ClassLoader cl = getClassLoader();
       if (NON_UNIX_FILE_SEP) {
@@ -130,9 +125,7 @@ public class FileResolver {
     if (!isDirectory) {
       cacheFile.getParentFile().mkdirs();
       try {
-        System.out.println("Copying from " + resource.toPath() + " to " + cacheFile.toPath());
         Files.copy(resource.toPath(), cacheFile.toPath());
-        System.out.println("Copied ok!");
       } catch (FileAlreadyExistsException ignore) {
         // OK - this can happen if this is called multiple times on different threads
       } catch (IOException e) {
@@ -168,13 +161,11 @@ public class FileResolver {
             file.mkdirs();
           } else {
             file.getParentFile().mkdirs();
-            System.out.println("getting from jar url, copying to " + file.toPath());
             try (InputStream is = zip.getInputStream(entry)) {
               Files.copy(is, file.toPath());
             } catch (FileAlreadyExistsException ignore) {
               // OK - this can happen if this is called multiple times on different threads
             }
-            System.out.println("Copied ok!");
           }
         }
       }
@@ -195,13 +186,10 @@ public class FileResolver {
   }
 
   private void setupCacheDir() {
-    System.out.println("Setting up cache dir");
     String cacheDirName = ".vertx/file-cache-" + UUID.randomUUID().toString();
     cacheDir = new File(cacheDirName);
     if (!cacheDir.mkdirs()) {
       throw new IllegalStateException("Failed to create cache dir");
-    } else {
-      System.out.println("cache dir setup: " + cacheDirName);
     }
   }
 
