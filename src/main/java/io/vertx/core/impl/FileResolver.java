@@ -24,8 +24,8 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -131,10 +131,11 @@ public class FileResolver {
       cacheFile.getParentFile().mkdirs();
       try {
         System.out.println("Copying from " + resource.toPath() + " to " + cacheFile.toPath());
-        Files.copy(resource.toPath(), cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(resource.toPath(), cacheFile.toPath());
         System.out.println("Copied ok!");
+      } catch (FileAlreadyExistsException ignore) {
+        // OK - this can happen if this is called multiple times on different threads
       } catch (IOException e) {
-        e.printStackTrace();
         throw new VertxException(e);
       }
     } else {
@@ -169,7 +170,9 @@ public class FileResolver {
             file.getParentFile().mkdirs();
             System.out.println("getting from jar url, copying to " + file.toPath());
             try (InputStream is = zip.getInputStream(entry)) {
-              Files.copy(is, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+              Files.copy(is, file.toPath());
+            } catch (FileAlreadyExistsException ignore) {
+              // OK - this can happen if this is called multiple times on different threads
             }
             System.out.println("Copied ok!");
           }
