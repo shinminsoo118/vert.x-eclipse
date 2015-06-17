@@ -93,8 +93,10 @@ public class FileResolver {
       // Look for it in local file cache
       File cacheFile = new File(cacheDir, fileName);
       if (enableCaching && cacheFile.exists()) {
+        System.out.println("Found in cache dir");
         return cacheFile;
       }
+      System.out.println("Not found in cache dir");
       // Look for file on classpath
       ClassLoader cl = getClassLoader();
       if (NON_UNIX_FILE_SEP) {
@@ -128,8 +130,11 @@ public class FileResolver {
     if (!isDirectory) {
       cacheFile.getParentFile().mkdirs();
       try {
+        System.out.println("Copying from " + resource.toPath() + " to " + cacheFile.toPath());
         Files.copy(resource.toPath(), cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        System.out.println("Copied ok!");
       } catch (IOException e) {
+        e.printStackTrace();
         throw new VertxException(e);
       }
     } else {
@@ -162,9 +167,11 @@ public class FileResolver {
             file.mkdirs();
           } else {
             file.getParentFile().mkdirs();
+            System.out.println("getting from jar url, copying to " + file.toPath());
             try (InputStream is = zip.getInputStream(entry)) {
               Files.copy(is, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
+            System.out.println("Copied ok!");
           }
         }
       }
