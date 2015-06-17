@@ -93,7 +93,7 @@ public class FileResolver {
       // Look for it in local file cache
       File cacheFile = new File(cacheDir, fileName);
       if (enableCaching && cacheFile.exists()) {
-        System.out.println("Found in cache dir");
+        //System.out.println("Found in cache dir");
         return cacheFile;
       }
       System.out.println("Not found in cache dir");
