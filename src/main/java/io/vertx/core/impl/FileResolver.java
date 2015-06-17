@@ -71,11 +71,13 @@ public class FileResolver {
   }
 
   public void deleteCacheDir(Handler<AsyncResult<Void>> handler) {
-    if (cacheDir != null) {
-      vertx.fileSystem().deleteRecursive(cacheDir.getAbsolutePath(), true, handler);
-    } else {
-      handler.handle(Future.succeededFuture());
-    }
+//    if (cacheDir != null) {
+//      System.out.println("Deleting cache dir: " + cacheDir);
+//      vertx.fileSystem().deleteRecursive(cacheDir.getAbsolutePath(), true, handler);
+//    } else {
+//      handler.handle(Future.succeededFuture());
+//    }
+    handler.handle(Future.succeededFuture());
   }
 
   public File resolveFile(String fileName) {
@@ -189,7 +191,7 @@ public class FileResolver {
     if (!cacheDir.mkdirs()) {
       throw new IllegalStateException("Failed to create cache dir");
     } else {
-      System.out.println("cache dir setup");
+      System.out.println("cache dir setup: " + cacheDirName);
     }
   }
 
