@@ -68,7 +68,7 @@ public class DeliveryOptions {
    * @param json  the JSON
    */
   public DeliveryOptions(JsonObject json) {
-    this.timeout = json.getLong("timeout", DEFAULT_TIMEOUT);
+    this.timeout = json.getLong("sendTimeout", DEFAULT_TIMEOUT);
     this.codecName = json.getString("codecName", null);
     JsonObject hdrs = json.getJsonObject("headers", null);
     if (hdrs != null) {

@@ -16,29 +16,12 @@
 
 package io.vertx.test.core;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Context;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageCodec;
-import io.vertx.core.eventbus.MessageConsumer;
-import io.vertx.core.eventbus.MessageProducer;
-import io.vertx.core.eventbus.ReplyException;
-import io.vertx.core.eventbus.ReplyFailure;
+import io.vertx.core.*;
+import io.vertx.core.eventbus.*;
 import io.vertx.core.eventbus.impl.EventBusImpl;
 import io.vertx.core.http.CaseInsensitiveHeaders;
-import io.vertx.core.impl.ConcurrentHashSet;
-import io.vertx.core.impl.ContextImpl;
-import io.vertx.core.impl.EventLoopContext;
-import io.vertx.core.impl.MultiThreadedWorkerContext;
-import io.vertx.core.impl.VertxInternal;
-import io.vertx.core.impl.WorkerContext;
+import io.vertx.core.impl.*;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -99,6 +82,18 @@ public class LocalEventBusTest extends EventBusTestBase {
     assertIllegalArgumentException(() -> options.setSendTimeout(-1));
     assertNullPointerException(() -> options.addHeader(null, ""));
     assertNullPointerException(() -> options.addHeader("", null));
+  }
+
+  @Test
+  public void testDeliveryOptionsJSON() {
+    JsonObject json = new JsonObject().put("sendTimeout", 1234).put("codecName", "mycodec")
+                        .put("headers", new JsonObject().put("hdr1", "val1").put("hdr2", "val2"));
+    DeliveryOptions options = new DeliveryOptions(json);
+    assertEquals(1234, options.getSendTimeout());
+    assertEquals("mycodec", options.getCodecName());
+    MultiMap hdrs = options.getHeaders();
+    assertEquals("val1", hdrs.get("hdr1"));
+    assertEquals("val2", hdrs.get("hdr2"));
   }
 
   @Test
