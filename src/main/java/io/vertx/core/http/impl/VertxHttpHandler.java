@@ -51,26 +51,26 @@ public abstract class VertxHttpHandler<C extends ConnectionBase> extends VertxHa
 
   @Override
   protected C getConnection(Channel channel) {
-    @SuppressWarnings("unchecked")
-    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
-    // As an optimisation we store the connection on the channel - this prevents a lookup every time
-    // an event from Netty arrives
-    if (vch.conn != null) {
-      return vch.conn;
-    } else {
+//    @SuppressWarnings("unchecked")
+//    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
+//    // As an optimisation we store the connection on the channel - this prevents a lookup every time
+//    // an event from Netty arrives
+//    if (vch.conn != null) {
+//      return vch.conn;
+//    } else {
       C conn = connectionMap.get(channel);
-      if (conn != null) {
-        vch.conn = conn;
-      }
+//      if (conn != null) {
+//        vch.conn = conn;
+//      }
       return conn;
-    }
+    //}
   }
 
   @Override
   protected C removeConnection(Channel channel) {
-    @SuppressWarnings("unchecked")
-    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
-    vch.conn = null;
+//    @SuppressWarnings("unchecked")
+//    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
+//    vch.conn = null;
     return connectionMap.remove(channel);
   }
 

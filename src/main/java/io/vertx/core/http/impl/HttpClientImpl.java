@@ -18,6 +18,7 @@ package io.vertx.core.http.impl;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -629,7 +630,8 @@ public class HttpClientImpl implements HttpClient, MetricsProvider {
                                Handler<Throwable> connectErrorHandler, ConnectionLifeCycleListener listener) {
     Bootstrap bootstrap = new Bootstrap();
     bootstrap.group(context.eventLoop());
-    bootstrap.channelFactory(new VertxNioSocketChannelFactory());
+    //bootstrap.channelFactory(new VertxNioSocketChannelFactory());
+    bootstrap.channel(EpollSocketChannel.class);
     sslHelper.validate(vertx);
     bootstrap.handler(new ChannelInitializer<Channel>() {
       @Override
