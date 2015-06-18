@@ -26,8 +26,6 @@ import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.websocketx.*;
-import io.netty.util.Attribute;
-import io.netty.util.AttributeKey;
 import io.vertx.core.http.impl.ws.WebSocketFrameImpl;
 import io.vertx.core.http.impl.ws.WebSocketFrameInternal;
 import io.vertx.core.impl.ContextImpl;
@@ -66,28 +64,29 @@ public abstract class VertxHttpHandler<C extends ConnectionBase> extends VertxHa
 //      }
 //      return conn;
 //    }
-    Attribute<C> attr = channel.attr(attrKey);
-    C conn = attr.get();
-    if (conn != null) {
-      return conn;
-    } else {
-      conn = connectionMap.get(channel);
-      if (conn != null) {
-        attr.set(conn);
-      }
-      return conn;
-    }
+//    Attribute<C> attr = channel.attr(attrKey);
+//    C conn = attr.get();
+//    if (conn != null) {
+//      return conn;
+//    } else {
+//      conn = connectionMap.get(channel);
+//      if (conn != null) {
+//        attr.set(conn);
+//      }
+//      return conn;
+//    }
+    return connectionMap.get(channel);
   }
 
-  AttributeKey<C> attrKey = AttributeKey.valueOf("vertxconn");
+  //AttributeKey<C> attrKey = AttributeKey.valueOf("vertxconn");
 
   @Override
   protected C removeConnection(Channel channel) {
 //    @SuppressWarnings("unchecked")
 //    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
 //    vch.conn = null;
-    Attribute<C> attr = channel.attr(attrKey);
-    attr.set(null);
+//    Attribute<C> attr = channel.attr(attrKey);
+//    attr.set(null);
     return connectionMap.remove(channel);
   }
 
