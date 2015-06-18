@@ -227,7 +227,10 @@ public class HttpServerImpl implements HttpServer, Closeable, MetricsProvider {
               if (!channelFuture.isSuccess()) {
                 vertx.sharedHttpServers().remove(id);
               } else {
-                metrics = vertx.metricsSPI().createMetrics(this, new SocketAddressImpl(port, host), options);
+                // There can be many vert.x http servers listening on same address and port so we cannot use that directly
+                // to uniquely identify the metrics, so we append the identiy hashcode to the address so they are unique
+                metrics = vertx.metricsSPI().createMetrics(this,
+                  new SocketAddressImpl(port, host + "-" + System.identityHashCode(HttpServerImpl.this)), options);
               }
             });
         } catch (final Throwable t) {
