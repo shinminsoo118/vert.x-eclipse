@@ -26,6 +26,8 @@ import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.websocketx.*;
+import io.netty.util.Attribute;
+import io.netty.util.AttributeKey;
 import io.vertx.core.http.impl.ws.WebSocketFrameImpl;
 import io.vertx.core.http.impl.ws.WebSocketFrameInternal;
 import io.vertx.core.impl.ContextImpl;
@@ -51,26 +53,41 @@ public abstract class VertxHttpHandler<C extends ConnectionBase> extends VertxHa
 
   @Override
   protected C getConnection(Channel channel) {
-    @SuppressWarnings("unchecked")
-    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
-    // As an optimisation we store the connection on the channel - this prevents a lookup every time
-    // an event from Netty arrives
-    if (vch.conn != null) {
-      return vch.conn;
+//    @SuppressWarnings("unchecked")
+//    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
+//    // As an optimisation we store the connection on the channel - this prevents a lookup every time
+//    // an event from Netty arrives
+//    if (vch.conn != null) {
+//      return vch.conn;
+//    } else {
+//      C conn = connectionMap.get(channel);
+//      if (conn != null) {
+//        vch.conn = conn;
+//      }
+//      return conn;
+//    }
+    Attribute<C> attr = channel.attr(attrKey);
+    C conn = attr.get();
+    if (conn != null) {
+      return conn;
     } else {
-      C conn = connectionMap.get(channel);
+      conn = connectionMap.get(channel);
       if (conn != null) {
-        vch.conn = conn;
+        attr.set(conn);
       }
       return conn;
     }
   }
 
+  AttributeKey<C> attrKey = AttributeKey.valueOf("vertxconn");
+
   @Override
   protected C removeConnection(Channel channel) {
-    @SuppressWarnings("unchecked")
-    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
-    vch.conn = null;
+//    @SuppressWarnings("unchecked")
+//    VertxNioSocketChannel<C> vch = (VertxNioSocketChannel<C>)channel;
+//    vch.conn = null;
+    Attribute<C> attr = channel.attr(attrKey);
+    attr.set(null);
     return connectionMap.remove(channel);
   }
 
