@@ -2,6 +2,7 @@ package io.vertx.test.core;
 
 import io.vertx.core.impl.IsolatingClassLoader;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.ExtensionClass;
 import org.junit.Before;
 import org.junit.Test;
 import user.VerticleImpl;
@@ -156,7 +157,7 @@ public class IsolatingClassLoaderTest {
     JsonObject core = (JsonObject) clazz.getDeclaredField("core").get(instance);
 
     // This makes a classcast exception
-    IsolatingClassLoaderTest ext = (IsolatingClassLoaderTest) clazz.getDeclaredField("ext").get(instance);
+    ExtensionClass ext = (ExtensionClass) clazz.getDeclaredField("ext").get(instance);
 
 
   }

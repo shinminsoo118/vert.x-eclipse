@@ -14,17 +14,10 @@
  *  You may elect to redistribute this code under either of these licenses.
  */
 
-package user;
-
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.ExtensionClass;
+package io.vertx.ext;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class VerticleImpl {
-
-  public final JsonObject core = new JsonObject();
-  public final ExtensionClass ext = new ExtensionClass();
-
+public class ExtensionClass {
 }
