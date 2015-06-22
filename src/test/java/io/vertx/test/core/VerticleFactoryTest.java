@@ -45,10 +45,10 @@ public class VerticleFactoryTest extends VertxTestBase {
 
   @Test
   public void testRegister() {
-    assertTrue(vertx.verticleFactories().isEmpty());
+    assertEquals(1, vertx.verticleFactories().size());
     VerticleFactory fact1 = new TestVerticleFactory("foo");
     vertx.registerVerticleFactory(fact1);
-    assertEquals(1, vertx.verticleFactories().size());
+    assertEquals(2, vertx.verticleFactories().size());
     assertTrue(vertx.verticleFactories().contains(fact1));
   }
 
@@ -56,11 +56,11 @@ public class VerticleFactoryTest extends VertxTestBase {
   public void testUnregister() {
     VerticleFactory fact1 = new TestVerticleFactory("foo");
     vertx.registerVerticleFactory(fact1);
-    assertEquals(1, vertx.verticleFactories().size());
+    assertEquals(2, vertx.verticleFactories().size());
     assertTrue(vertx.verticleFactories().contains(fact1));
     vertx.unregisterVerticleFactory(fact1);
     assertFalse(vertx.verticleFactories().contains(fact1));
-    assertTrue(vertx.verticleFactories().isEmpty());
+    assertEquals(1, vertx.verticleFactories().size());
   }
 
   @Test
@@ -104,17 +104,17 @@ public class VerticleFactoryTest extends VertxTestBase {
     VerticleFactory fact1 = new TestVerticleFactory("foo");
     VerticleFactory fact2 = new TestVerticleFactory("bar");
     vertx.registerVerticleFactory(fact1);
-    assertEquals(1, vertx.verticleFactories().size());
-    vertx.registerVerticleFactory(fact2);
     assertEquals(2, vertx.verticleFactories().size());
+    vertx.registerVerticleFactory(fact2);
+    assertEquals(3, vertx.verticleFactories().size());
     assertTrue(vertx.verticleFactories().contains(fact1));
     assertTrue(vertx.verticleFactories().contains(fact2));
     vertx.unregisterVerticleFactory(fact1);
     assertFalse(vertx.verticleFactories().contains(fact1));
-    assertEquals(1, vertx.verticleFactories().size());
+    assertEquals(2, vertx.verticleFactories().size());
     assertTrue(vertx.verticleFactories().contains(fact2));
     vertx.unregisterVerticleFactory(fact2);
-    assertTrue(vertx.verticleFactories().isEmpty());
+    assertEquals(1, vertx.verticleFactories().size());
     assertFalse(vertx.verticleFactories().contains(fact1));
     assertFalse(vertx.verticleFactories().contains(fact2));
   }
@@ -401,6 +401,24 @@ public class VerticleFactoryTest extends VertxTestBase {
       assertNull(fact1.identifierToResolve);
       assertNull(fact2.identifierToResolve);
       assertNull(factActual.identifier);
+      testComplete();
+    });
+    await();
+  }
+
+  @Test
+  public void testCustomVerticleFactory() {
+    vertx.deployVerticle("custom:user.UserCustomVerticle", ar -> {
+      assertTrue(ar.succeeded());
+      testComplete();
+    });
+    await();
+  }
+
+  @Test
+  public void testCustomVerticleFactoryWithRedeploy() {
+    vertx.deployVerticle("custom:user.UserCustomVerticle", new DeploymentOptions().setRedeploy(true), ar -> {
+      assertTrue(ar.succeeded());
       testComplete();
     });
     await();
