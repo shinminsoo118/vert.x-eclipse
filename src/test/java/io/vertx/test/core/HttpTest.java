@@ -1072,6 +1072,56 @@ public class HttpTest extends HttpTestBase {
   }
 
   @Test
+  public void reproducerResponseExceptionHandlerCalledAfterEnd() {
+    server.requestHandler(req -> {
+      req.response().end("the_response");
+    }).listen(onSuccess(server -> {
+      client.request(HttpMethod.GET, DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", res -> {
+        assertEquals(200, res.statusCode());
+        AtomicBoolean ended = new AtomicBoolean();
+        res.exceptionHandler(err -> {
+          assertTrue(ended.get());
+          fail();
+        });
+        res.endHandler(v -> {
+          ended.set(true);
+          vertx.setTimer(50, id -> {
+            testComplete();
+          });
+        });
+      }).end();
+    }));
+    await();
+  }
+
+  @Test
+  public void reproducerResponseExceptionHandlerCalledBeforeEndWithPause() {
+    server.requestHandler(req -> {
+      req.response().end("the_response");
+    }).listen(onSuccess(server -> {
+      client.request(HttpMethod.GET, DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", res -> {
+        assertEquals(200, res.statusCode());
+        res.pause();
+        vertx.setTimer(30, id -> {
+          res.resume();
+        });
+        AtomicBoolean ended = new AtomicBoolean();
+        res.exceptionHandler(err -> {
+          assertFalse(ended.get());
+          fail();
+        });
+        res.endHandler(v -> {
+          ended.set(true);
+          vertx.setTimer(50, id -> {
+            testComplete();
+          });
+        });
+      }).end();
+    }));
+    await();
+  }
+
+  @Test
   public void testAbsoluteURI() {
     testURIAndPath("http://localhost:" + DEFAULT_HTTP_PORT + "/this/is/a/path/foo.html", "/this/is/a/path/foo.html");
   }
