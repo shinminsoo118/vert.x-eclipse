@@ -17,7 +17,6 @@
 package io.vertx.core;
 
 import io.vertx.core.impl.Args;
-import io.vertx.core.impl.IsolatingClassLoader;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -31,13 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.*;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Properties;
-import java.util.Scanner;
-import java.util.ServiceLoader;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -86,7 +79,10 @@ public class Starter {
           throw new IllegalStateException(e);
         }
       }
-      IsolatingClassLoader icl = new IsolatingClassLoader(urls, Starter.class.getClassLoader());
+      // As we need to add extra stuff to the classpath we need to create a new classloader to do this
+      // this is necessary for the fatjar case where the -cp argument on the command line is ignored by
+      // the JVM so we need to handle it ourselves
+      ClassLoader icl = new URLClassLoader(urls, Starter.class.getClassLoader());
       ClassLoader oldTCCL = Thread.currentThread().getContextClassLoader();
       Thread.currentThread().setContextClassLoader(icl);
       try {
