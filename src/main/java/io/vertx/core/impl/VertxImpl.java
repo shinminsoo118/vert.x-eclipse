@@ -61,6 +61,8 @@ import io.vertx.core.spi.metrics.MetricsProvider;
 import io.vertx.core.spi.metrics.VertxMetrics;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -630,6 +632,30 @@ public class VertxImpl implements VertxInternal, MetricsProvider {
   @Override
   public File resolveFile(String fileName) {
     return fileResolver.resolveFile(fileName);
+  }
+
+  //private DnsClient dnsClient;
+
+  @Override
+  public synchronized void resolveAsync(String host, Handler<AsyncResult<String>> resultHandler) {
+    // For now just do a blocking resolve
+    executeBlockingInternal(() -> {
+      try {
+        return InetAddress.getByName(host).getHostAddress();
+      } catch (UnknownHostException e) {
+        throw new VertxException(e);
+      }
+    }, resultHandler);
+
+//    if (dnsClient == null) {
+//      List<String> servers = DnsServers.getServers();
+//      if (servers.isEmpty()) {
+//        throw new IllegalStateException("No DNS servers configured in OS");
+//      }
+//      // Take the first one
+//      dnsClient = createDnsClient(53, servers.get(0));
+//    }
+//    DnsServers.lookup(dnsClient, host, resultHandler);
   }
 
   @SuppressWarnings("unchecked")

@@ -238,6 +238,7 @@ public final class DnsClientImpl implements DnsClient {
 
   @SuppressWarnings("unchecked")
   private void lookup(String name, Future result, int... types) {
+    System.out.println("Looking up name: "+  name);
     Objects.requireNonNull(name, "no null name accepted");
     bootstrap.connect(dnsServer).addListener(new RetryChannelFutureListener(result) {
       @Override
