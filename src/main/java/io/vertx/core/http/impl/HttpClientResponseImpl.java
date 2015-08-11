@@ -45,6 +45,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class HttpClientResponseImpl implements HttpClientResponse  {
 
+  static {
+    System.out.println("****************** RUNNING DIAGNOSTIC VERSION ******");
+  }
+
   private final int statusCode;
   private final String statusMessage;
   private final HttpClientRequestImpl request;
@@ -217,8 +221,6 @@ public class HttpClientResponseImpl implements HttpClientResponse  {
       if (dataHandler != null) {
         if (data.sequence != handledSeq.getAndIncrement()) {
           System.out.println("!!!! OUT OF SEQUENCE");
-          System.out.flush();
-          System.exit(0);
         }
         dataHandler.handle(data.buff);
       }
