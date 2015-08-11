@@ -32,6 +32,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class is optimised for performance when used on the same event loop that is was passed to the handler with.
@@ -56,7 +57,7 @@ public class HttpClientResponseImpl implements HttpClientResponse  {
   private Handler<Throwable> exceptionHandler;
   private LastHttpContent trailer;
   private boolean paused;
-  private Queue<Buffer> pausedChunks;
+  private Queue<BufferHolder> pausedChunks;
   private boolean hasPausedEnd;
   private LastHttpContent pausedTrailer;
   private NetSocket netSocket;
@@ -173,32 +174,39 @@ public class HttpClientResponseImpl implements HttpClientResponse  {
 
   private void doResume() {
     if (pausedChunks != null) {
-      Buffer chunk;
+      BufferHolder chunk;
       while ((chunk = pausedChunks.poll()) != null) {
-        final Buffer theChunk = chunk;
-        vertx.runOnContext(new VoidHandler() {
-          @Override
-          protected void handle() {
-            handleChunk(theChunk);
-          }
-        });
+        final BufferHolder theChunk = chunk;
+        vertx.runOnContext(v -> handleChunk(theChunk));
       }
     }
     if (hasPausedEnd) {
       final LastHttpContent theTrailer = pausedTrailer;
-      vertx.runOnContext(new VoidHandler() {
-        @Override
-        protected void handle() {
-          handleEnd(theTrailer);
-        }
-      });
+      vertx.runOnContext(v -> handleEnd(theTrailer));
       hasPausedEnd = false;
       pausedTrailer = null;
     }
   }
 
+  private final class BufferHolder {
+    final int sequence;
+    final Buffer buff;
+
+    public BufferHolder(int sequence, Buffer buff) {
+      this.sequence = sequence;
+      this.buff = buff;
+    }
+  }
+
+  private AtomicInteger seq = new AtomicInteger();
+  private AtomicInteger handledSeq = new AtomicInteger();
+
   synchronized void handleChunk(Buffer data) {
-    bytesRead += data.length();
+    handleChunk(new BufferHolder(seq.getAndIncrement(), data));
+  }
+
+  synchronized void handleChunk(BufferHolder data) {
+    bytesRead += data.buff.length();
     if (paused) {
       if (pausedChunks == null) {
         pausedChunks = new ArrayDeque<>();
@@ -207,7 +215,12 @@ public class HttpClientResponseImpl implements HttpClientResponse  {
     } else {
       request.dataReceived();
       if (dataHandler != null) {
-        dataHandler.handle(data);
+        if (data.sequence != handledSeq.getAndIncrement()) {
+          System.out.println("!!!! OUT OF SEQUENCE");
+          System.out.flush();
+          System.exit(0);
+        }
+        dataHandler.handle(data.buff);
       }
     }
   }
