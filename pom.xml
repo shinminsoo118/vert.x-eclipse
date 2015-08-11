@@ -181,6 +181,7 @@
                 <compilerArgs>
                   <arg>-AoutputDirectory=${project.basedir}/src/test</arg>
                 </compilerArgs>
+                <generatedTestSourcesDirectory>${project.basedir}/src/test/generated</generatedTestSourcesDirectory>
               </configuration>
             </execution>
           </executions>
