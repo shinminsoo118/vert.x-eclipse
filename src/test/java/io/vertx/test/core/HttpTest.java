@@ -22,6 +22,7 @@ import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.file.OpenOptions;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.HeadersAdaptor;
 import io.vertx.core.impl.*;
@@ -4206,6 +4207,82 @@ public class HttpTest extends HttpTestBase {
     }));
 
     await();
+  }
+
+  @Test
+  public void testClientResponsePauseResume() {
+    int length = 1000000;
+    int batchSize = 10000;
+    AtomicInteger cnt = new AtomicInteger();
+    server.requestHandler(req -> {
+      // simulate a large file being downloaded
+      req.response().setChunked(true);
+      writeBuffer(req, batchSize, length, cnt);
+    });
+    server.listen(onSuccess(s -> {
+      String fileName = new File(testDir, UUID.randomUUID().toString()).getPath();
+      vertx.fileSystem().open(fileName, new OpenOptions().setCreateNew(true), onSuccess(file -> {
+        client.getNow(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/whatevs", resp -> {
+          assertEquals(200, resp.statusCode());
+          Pump pump = Pump.pump(resp, file);
+          pump.setWriteQueueMaxSize(100);
+          pump.start();
+          resp.endHandler(v -> {
+            file.close(onSuccess(v2 -> {
+              File f = new File(fileName);
+              assertTrue(f.exists());
+              assertEquals(length, f.length());
+              //checkValid(f, length);
+              testComplete();
+            }));
+          });
+        });
+      }));
+
+    }));
+
+    await();
+  }
+
+  private void checkValid(File f, int length) {
+    AtomicInteger seq = new AtomicInteger();
+    vertx.fileSystem().open(f.getPath(), new OpenOptions(), onSuccess(file -> {
+      file.handler(buff -> {
+        for (int i = 0; i < buff.length(); i++) {
+          byte b = buff.getByte(i);
+          int lastCount = seq.getAndIncrement();
+          //System.out.println(lastCount + " : " + b);
+          byte expected = intToRollingByte(lastCount);
+          assertEquals(expected, b);
+          if (lastCount == length - 1) {
+            testComplete();
+          }
+        }
+      });
+    }));
+  }
+
+  private byte intToRollingByte(int i) {
+    return (byte)(i % 256 - 128);
+  }
+
+  private Buffer buff = TestUtils.randomBuffer(10000);
+
+  private void writeBuffer(HttpServerRequest req, int batchSize, int length, AtomicInteger cnt) {
+    Buffer buff = Buffer.buffer(batchSize);
+    int lastCount = 0;
+    for (int i = 0; i < batchSize; i++) {
+      lastCount = cnt.getAndIncrement();
+      byte b = intToRollingByte(lastCount);
+      //System.out.println(lastCount + " : " + b);
+      buff.appendByte(b);
+    }
+    req.response().write(buff);
+    if (lastCount < length - 1) {
+      vertx.runOnContext(v -> writeBuffer(req, batchSize, length, cnt));
+    } else {
+      req.response().end();
+    }
   }
 
   private void pausingServer(Consumer<HttpServer> consumer) {
