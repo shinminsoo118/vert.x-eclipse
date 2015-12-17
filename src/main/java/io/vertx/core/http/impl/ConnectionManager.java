@@ -26,6 +26,7 @@ import io.vertx.core.logging.LoggerFactory;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -96,10 +97,29 @@ public abstract class ConnectionManager {
 
     public synchronized void getConnection(Handler<ClientConnection> handler, Handler<Throwable> connectionExceptionHandler,
                                            ContextImpl context, BooleanSupplier canceled) {
-      ClientConnection conn = availableConnections.poll();
+
+
+      // Find a connection in the pool with the same context
+      ClientConnection contextConn = null;
+      if (availableConnections.size() > 0 && availableConnections.peek().getContext() == context) {
+        // When the client is used by single context it chose this path
+        contextConn = availableConnections.poll();
+      } else if (availableConnections.size() > 0) {
+        // Otherwise scan the pool to find one
+        for (Iterator<ClientConnection> i = availableConnections.iterator();i.hasNext();) {
+          ClientConnection c = i.next();
+          if (c.getContext() == context) {
+            contextConn = c;
+            i.remove();
+            break;
+          }
+        }
+      }
+      ClientConnection conn = contextConn;
+
       if (conn != null && !conn.isClosed()) {
         context.runOnContext(v -> handler.handle(conn));
-      } else if (connCount == maxSockets) {
+      } else if (availableConnections.isEmpty() && connCount == maxSockets) {
         // Wait in queue
         if (maxWaitQueueSize < 0 || waiters.size() < maxWaitQueueSize) {
           waiters.add(new Waiter(handler, connectionExceptionHandler, context, canceled));
@@ -107,6 +127,10 @@ public abstract class ConnectionManager {
           connectionExceptionHandler.handle(new ConnectionPoolTooBusyException("Connection pool reached max wait queue size of " + maxWaitQueueSize));
         }
       } else {
+        if (availableConnections.size() > 0) {
+          // We couldn't find a connection with the correct context in the pool, we should close a connection first
+          availableConnections.poll().close();
+        }
         // Create a new connection
         createNewConnection(handler, connectionExceptionHandler, context);
       }
@@ -130,13 +154,11 @@ public abstract class ConnectionManager {
         if (waiter != null) {
           waiter.reuse(conn);
         } else if (!pipelining || conn.getOutstandingRequestCount() == 0) {
+          // Return to set of available
+          availableConnections.add(conn);
           waiter = getNextWaiter(null);
           if (waiter != null) {
-            conn.close();
             getConnection(waiter.handler, waiter.connectionExceptionHandler, waiter.context, waiter.canceled);
-          } else {
-            // Return to set of available
-            availableConnections.add(conn);
           }
         }
       } else {

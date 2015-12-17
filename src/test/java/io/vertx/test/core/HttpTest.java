@@ -4984,20 +4984,25 @@ public class HttpTest extends HttpTestBase {
 
   @Test
   public void testCloseConnectionWhenDifferentContextWithKeepAlive() throws Exception {
-    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setMaxPoolSize(1));
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setMaxPoolSize(1), false);
+  }
+
+  @Test
+  public void testCloseConnectionWhenDifferentContextWithKeepAliveEnqueued() throws Exception {
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setMaxPoolSize(1), true);
   }
 
   @Test
   public void testCloseConnectionWhenDifferentContextWithPipelining() throws Exception {
-    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setPipelining(true).setMaxPoolSize(1));
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setPipelining(true).setMaxPoolSize(1), true);
   }
 
   @Test
   public void testCloseConnectionWhenDifferentContext() throws Exception {
-    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(false).setPipelining(false).setMaxPoolSize(1));
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(false).setPipelining(false).setMaxPoolSize(1), true);
   }
 
-  private void testCloseConnectionWhenDifferentContext(HttpClientOptions clientOptions) throws Exception {
+  private void testCloseConnectionWhenDifferentContext(HttpClientOptions clientOptions, boolean enqueued) throws Exception {
     CountDownLatch listenLatch = new CountDownLatch(1);
     server.requestHandler(req -> {
       req.response().putHeader("Content-Type", "text/plain").end("HELLO");
@@ -5012,12 +5017,7 @@ public class HttpTest extends HttpTestBase {
     AtomicInteger status = new AtomicInteger();
     Context ctx1 = vertx.getOrCreateContext();
     Context ctx2 = vertx.getOrCreateContext();
-    ctx1.runOnContext(v1 -> {
-      client.getNow(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", resp -> {
-        assertEquals(200, resp.statusCode());
-        assertEquals(0, status.getAndIncrement());
-        assertEquals(ctx1, Vertx.currentContext());
-      });
+    Runnable nextReq = () -> {
       ctx2.runOnContext(v2 -> {
         client.getNow(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", resp -> {
           assertEquals(200, resp.statusCode());
@@ -5026,6 +5026,21 @@ public class HttpTest extends HttpTestBase {
           testComplete();
         });
       });
+    };
+    ctx1.runOnContext(v1 -> {
+      client.getNow(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", resp -> {
+        assertEquals(200, resp.statusCode());
+        assertEquals(0, status.getAndIncrement());
+        assertEquals(ctx1, Vertx.currentContext());
+        if (!enqueued) {
+          resp.endHandler(v -> {
+            nextReq.run();
+          });
+        }
+      });
+      if (enqueued) {
+        nextReq.run();
+      }
     });
     await();
   }
