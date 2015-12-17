@@ -16,6 +16,7 @@
 
 package io.vertx.core.http.impl;
 
+import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.http.ConnectionPoolTooBusyException;
 import io.vertx.core.impl.ContextImpl;
@@ -23,6 +24,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
@@ -83,7 +85,7 @@ public abstract class ConnectionManager {
   private class ConnQueue implements ConnectionLifeCycleListener {
 
     private final TargetAddress address;
-    private final Queue<Waiter> waiters = new ArrayDeque<>();
+    private final Deque<Waiter> waiters = new ArrayDeque<>();
     private final Set<ClientConnection> allConnections = new HashSet<>();
     private final Queue<ClientConnection> availableConnections = new ArrayDeque<>();
     private int connCount;
@@ -114,7 +116,7 @@ public abstract class ConnectionManager {
     public synchronized void requestEnded(ClientConnection conn) {
       if (pipelining) {
         // Maybe the connection can be reused
-        Waiter waiter = getNextWaiter();
+        Waiter waiter = getNextWaiter(conn.getContext());
         if (waiter != null) {
           waiter.context.runOnContext(v -> waiter.handler.handle(conn));
         }
@@ -124,12 +126,18 @@ public abstract class ConnectionManager {
     // Called when the response has ended
     public synchronized void responseEnded(ClientConnection conn) {
       if (pipelining || keepAlive) {
-        Waiter waiter = getNextWaiter();
+        Waiter waiter = getNextWaiter(conn.getContext());
         if (waiter != null) {
-          waiter.context.runOnContext(v -> waiter.handler.handle(conn));
+          waiter.reuse(conn);
         } else if (!pipelining || conn.getOutstandingRequestCount() == 0) {
-          // Return to set of available
-          availableConnections.add(conn);
+          waiter = getNextWaiter(null);
+          if (waiter != null) {
+            conn.close();
+            getConnection(waiter.handler, waiter.connectionExceptionHandler, waiter.context, waiter.canceled);
+          } else {
+            // Return to set of available
+            availableConnections.add(conn);
+          }
         }
       } else {
         // Close it now
@@ -163,11 +171,16 @@ public abstract class ConnectionManager {
       }, connectionExceptionHandler, context, this);
     }
 
-    private Waiter getNextWaiter() {
+    private Waiter getNextWaiter(Context matchingCtx) {
       // See if there are any non-canceled waiters in the queue
       Waiter waiter = waiters.poll();
       while (waiter != null && waiter.canceled.getAsBoolean()) {
         waiter = waiters.poll();
+      }
+      // Check it has the same context than the provided matchingCtx when it is not null
+      if (waiter != null && matchingCtx != null && matchingCtx != waiter.context) {
+        waiters.addFirst(waiter);
+        waiter = null;
       }
       return waiter;
     }
@@ -180,7 +193,7 @@ public abstract class ConnectionManager {
         allConnections.remove(conn);
         availableConnections.remove(conn);
       }
-      Waiter waiter = getNextWaiter();
+      Waiter waiter = getNextWaiter(null);
       if (waiter != null) {
         // There's a waiter - so it can have a new connection
         createNewConnection(waiter.handler, waiter.connectionExceptionHandler, waiter.context);
@@ -231,6 +244,9 @@ public abstract class ConnectionManager {
       this.context = context;
       this.canceled = canceled;
     }
+
+    void reuse(ClientConnection conn) {
+      context.runOnContext(v -> handler.handle(conn));    }
   }
 
 

@@ -4982,5 +4982,52 @@ public class HttpTest extends HttpTestBase {
     await();
   }
 
+  @Test
+  public void testCloseConnectionWhenDifferentContextWithKeepAlive() throws Exception {
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setMaxPoolSize(1));
+  }
+
+  @Test
+  public void testCloseConnectionWhenDifferentContextWithPipelining() throws Exception {
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(true).setPipelining(true).setMaxPoolSize(1));
+  }
+
+  @Test
+  public void testCloseConnectionWhenDifferentContext() throws Exception {
+    testCloseConnectionWhenDifferentContext(new HttpClientOptions().setKeepAlive(false).setPipelining(false).setMaxPoolSize(1));
+  }
+
+  private void testCloseConnectionWhenDifferentContext(HttpClientOptions clientOptions) throws Exception {
+    CountDownLatch listenLatch = new CountDownLatch(1);
+    server.requestHandler(req -> {
+      req.response().putHeader("Content-Type", "text/plain").end("HELLO");
+    });
+    server.listen(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, ar -> {
+      assertTrue(ar.succeeded());
+      listenLatch.countDown();
+    });
+    awaitLatch(listenLatch);
+    client.close();
+    client = vertx.createHttpClient(clientOptions);
+    AtomicInteger status = new AtomicInteger();
+    Context ctx1 = vertx.getOrCreateContext();
+    Context ctx2 = vertx.getOrCreateContext();
+    ctx1.runOnContext(v1 -> {
+      client.getNow(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", resp -> {
+        assertEquals(200, resp.statusCode());
+        assertEquals(0, status.getAndIncrement());
+        assertEquals(ctx1, Vertx.currentContext());
+      });
+      ctx2.runOnContext(v2 -> {
+        client.getNow(DEFAULT_HTTP_PORT, DEFAULT_HTTP_HOST, "/", resp -> {
+          assertEquals(200, resp.statusCode());
+          assertEquals(1, status.getAndIncrement());
+          assertEquals(ctx2, Vertx.currentContext());
+          testComplete();
+        });
+      });
+    });
+    await();
+  }
 
 }

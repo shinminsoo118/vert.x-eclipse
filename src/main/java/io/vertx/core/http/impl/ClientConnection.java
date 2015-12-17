@@ -311,6 +311,8 @@ class ClientConnection extends ConnectionBase {
     } else if (currentResponse != null) {
       currentResponse.handleException(e);
     }
+
+
   }
 
   protected ContextImpl getContext() {
