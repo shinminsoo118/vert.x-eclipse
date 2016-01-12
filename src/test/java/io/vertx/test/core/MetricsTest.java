@@ -633,6 +633,36 @@ public class MetricsTest extends VertxTestBase {
   }
 
   @Test
+  public void testHttpRequestTimeout() throws Exception {
+    HttpClient client = vertx.createHttpClient();
+    FakeHttpClientMetrics metrics = FakeMetricsBase.getMetrics(client);
+    CountDownLatch listenLatch = new CountDownLatch(1);
+    HttpClientRequest request = client.request(HttpMethod.CONNECT, 8080, "localhost", "/", resp -> {
+      fail();
+    });
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicReference<HttpClientMetric> requestMetricHolder = new AtomicReference<>();
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      requestMetricHolder.set(metrics.getMetric(request));
+      latch.countDown();
+    });
+    server.listen(8080, "localhost", ar -> {
+      assertTrue(ar.succeeded());
+      listenLatch.countDown();
+    });
+    awaitLatch(listenLatch);
+    request.setTimeout(1000);
+    request.end();
+    awaitLatch(latch);
+    HttpClientMetric requestMetric = requestMetricHolder.get();
+    waitUntil(() -> requestMetric.requestExceptions.size() == 1);
+    assertNull(metrics.getMetric(request));
+    assertNull(requestMetric.response.get());
+    assertFalse(requestMetric.ended.get());
+  }
+
+  @Test
   public void testDatagram1() throws Exception {
     testDatagram("127.0.0.1", packet -> {
       assertEquals("127.0.0.1", packet.remoteAddress.host());

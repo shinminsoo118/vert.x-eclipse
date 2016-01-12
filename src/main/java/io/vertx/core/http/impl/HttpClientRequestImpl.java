@@ -41,7 +41,6 @@ import io.vertx.core.spi.metrics.HttpClientMetrics;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.vertx.core.http.HttpHeaders.*;
 
@@ -382,6 +381,12 @@ public class HttpClientRequestImpl implements HttpClientRequest {
       cancelOutstandingTimeoutTimer();
       exceptionOccurred = true;
       getExceptionHandler().handle(t);
+
+      HttpClientMetrics metrics = client.getMetrics();
+      if (metrics.isEnabled()) {
+        // metrics.responseEnd(metric, resp);
+        metrics.requestExceptionOccured(metric, t);
+      }
     }
   }
 
@@ -390,6 +395,10 @@ public class HttpClientRequestImpl implements HttpClientRequest {
       // If an exception occurred (e.g. a timeout fired) we won't receive the response.
       if (!exceptionOccurred) {
         cancelOutstandingTimeoutTimer();
+        HttpClientMetrics metrics = client.getMetrics();
+        if (metrics.isEnabled()) {
+          metrics.responseBegin(metric, resp);
+        }
         try {
           if (resp.statusCode() == 100) {
             if (continueHandler != null) {
@@ -655,9 +664,10 @@ public class HttpClientRequestImpl implements HttpClientRequest {
   }
 
   void reportResponseEnd(HttpClientResponseImpl resp) {
+    System.out.println("HELLO");
     HttpClientMetrics metrics = client.httpClientMetrics();
     if (metrics.isEnabled()) {
-      metrics.responseEnd(metric, resp);
+      metrics.responseEnd(metric);
     }
   }
 

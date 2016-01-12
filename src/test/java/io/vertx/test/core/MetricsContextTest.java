@@ -311,7 +311,7 @@ public class MetricsContextTest extends AsyncTestBase {
             return null;
           }
           @Override
-          public void responseEnd(Void requestMetric, HttpClientResponse response) {
+          public void responseEnd(Void requestMetric) {
             responseEndCalled.set(true);
           }
           @Override

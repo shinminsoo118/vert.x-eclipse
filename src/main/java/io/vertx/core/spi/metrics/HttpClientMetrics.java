@@ -43,7 +43,7 @@ import io.vertx.core.net.SocketAddress;
 public interface HttpClientMetrics<R, W, S> extends TCPMetrics<S> {
 
   /**
-   * Called when an http client request begins
+   * Called when an http client request begins.
    *
    * @param socketMetric the socket metric
    * @param localAddress the local address
@@ -54,12 +54,29 @@ public interface HttpClientMetrics<R, W, S> extends TCPMetrics<S> {
   R requestBegin(S socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request);
 
   /**
-   * Called when an http client response has ended
+   * Called when an http client request encounters an error. When the error happens before the response begins,
+   * no further processing will occur. This can be called multiple times, for instance a timeout exception followed
+   * by a connection close exception.
+   *
+   * @param requestMetric the request metric.
+   * @param cause the error
+   */
+  void requestExceptionOccured(R requestMetric, Throwable cause);
+
+  /**
+   * Called when the response begins for the {@code requestMetric}.
    *
    * @param requestMetric the request metric
-   * @param response the {@link io.vertx.core.http.HttpClientResponse}
+   * @param response the response
    */
-  void responseEnd(R requestMetric, HttpClientResponse response);
+  void responseBegin(R requestMetric, HttpClientResponse response);
+
+  /**
+   * Called when an http client response has ended.
+   *
+   * @param requestMetric the request metric
+   */
+  void responseEnd(R requestMetric);
 
   /**
    * Called when a web socket connects.

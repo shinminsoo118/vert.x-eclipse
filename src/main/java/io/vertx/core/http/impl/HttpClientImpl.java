@@ -654,7 +654,7 @@ public class HttpClientImpl implements HttpClient, MetricsProvider {
   }
 
   @Override
-  public Metrics getMetrics() {
+  public HttpClientMetrics getMetrics() {
     return metrics;
   }
 

@@ -67,7 +67,19 @@ public class FakeHttpClientMetrics extends FakeMetricsBase implements HttpClient
   }
 
   @Override
-  public void responseEnd(HttpClientMetric requestMetric, HttpClientResponse response) {
+  public void requestExceptionOccured(HttpClientMetric requestMetric, Throwable cause) {
+    requestMetric.requestExceptions.add(cause);
+    requests.remove(requestMetric.request);
+  }
+
+  @Override
+  public void responseBegin(HttpClientMetric requestMetric, HttpClientResponse response) {
+    requestMetric.response.set(response);
+  }
+
+  @Override
+  public void responseEnd(HttpClientMetric requestMetric) {
+    requestMetric.ended.set(true);
     requests.remove(requestMetric.request);
   }
 

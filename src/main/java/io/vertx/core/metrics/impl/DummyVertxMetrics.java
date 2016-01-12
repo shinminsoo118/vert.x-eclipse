@@ -221,7 +221,15 @@ public class DummyVertxMetrics implements VertxMetrics {
     }
 
     @Override
-    public void responseEnd(Void requestMetric, HttpClientResponse response) {
+    public void responseBegin(Void requestMetric, HttpClientResponse response) {
+    }
+
+    @Override
+    public void requestExceptionOccured(Void requestMetric, Throwable cause) {
+    }
+
+    @Override
+    public void responseEnd(Void requestMetric) {
     }
 
     @Override
