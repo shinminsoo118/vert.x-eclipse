@@ -633,6 +633,30 @@ public class MetricsTest extends VertxTestBase {
   }
 
   @Test
+  public void testClientHttpRequestConnectError() throws Exception {
+    HttpClient client = vertx.createHttpClient();
+    FakeHttpClientMetrics metrics = FakeMetricsBase.getMetrics(client);
+    HttpClientRequest request = client.request(HttpMethod.CONNECT, 8080, "localhost", "/", resp -> {
+      fail();
+    });
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicReference<HttpClientMetric> requestMetricHolder = new AtomicReference<>();
+    request.exceptionHandler(err -> {
+      requestMetricHolder.set(metrics.getMetric(request));
+      latch.countDown();
+    });
+    request.end();
+    awaitLatch(latch);
+    HttpClientMetric requestMetric = requestMetricHolder.get();
+    waitUntil(() -> requestMetric.requestExceptions.size() == 1);
+    assertNull(metrics.getMetric(request));
+    assertNotNull(requestMetric.socket.get());
+    assertTrue(requestMetric.requestEnded.get());
+    assertNull(requestMetric.response.get());
+    assertFalse(requestMetric.responseEnded.get());
+  }
+
+  @Test
   public void testClientHttpRequestTimeout() throws Exception {
     HttpClient client = vertx.createHttpClient();
     FakeHttpClientMetrics metrics = FakeMetricsBase.getMetrics(client);
