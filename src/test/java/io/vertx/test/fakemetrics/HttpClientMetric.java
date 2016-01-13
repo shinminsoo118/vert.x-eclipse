@@ -31,13 +31,17 @@ import java.util.concurrent.atomic.AtomicReference;
 public class HttpClientMetric {
 
   public final HttpClientRequest request;
+  public final int port;
+  public final String host;
+  public final AtomicBoolean requestEnded = new AtomicBoolean();
   public final List<Throwable> requestExceptions = Collections.synchronizedList(new ArrayList<>());
   public final AtomicReference<HttpClientResponse> response = new AtomicReference<>();
-  public final AtomicBoolean ended = new AtomicBoolean();
-  public final SocketMetric socket;
+  public final AtomicBoolean responseEnded = new AtomicBoolean();
+  public final AtomicReference<SocketMetric> socket = new AtomicReference<>();
 
-  public HttpClientMetric(HttpClientRequest request, SocketMetric socket) {
+  public HttpClientMetric(HttpClientRequest request, int port, String host) {
     this.request = request;
-    this.socket = socket;
+    this.host = host;
+    this.port = port;
   }
 }

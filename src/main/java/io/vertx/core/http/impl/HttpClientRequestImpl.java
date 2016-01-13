@@ -589,6 +589,12 @@ public class HttpClientRequestImpl implements HttpClientRequest {
 
   private synchronized void connect() {
     if (!connecting) {
+
+      HttpClientMetrics metrics = client.httpClientMetrics();
+      if (metrics.isEnabled()) {
+        this.metric = metrics.requestSchedule(host, port, this);
+      }
+
       // We defer actual connection until the first part of body is written or end is called
       // This gives the user an opportunity to set an exception handler before connecting so
       // they can capture any exceptions on connection
@@ -620,7 +626,7 @@ public class HttpClientRequestImpl implements HttpClientRequest {
   private void connected(ClientConnection conn) {
     conn.setCurrentRequest(this);
     this.conn = conn;
-    this.metric = client.httpClientMetrics().requestBegin(conn.metric(), conn.localAddress(), conn.remoteAddress(), this);
+    client.httpClientMetrics().requestBegin(metric, conn.metric(), conn.localAddress(), conn.remoteAddress(), this);
 
     // If anything was written or the request ended before we got the connection, then
     // we need to write it now
@@ -640,7 +646,7 @@ public class HttpClientRequestImpl implements HttpClientRequest {
         conn.reportBytesWritten(written);
 
         if (respHandler != null) {
-          conn.endRequest();
+          endRequest();
         }
       } else {
         writeHeadWithContent(pending, false);
@@ -653,7 +659,7 @@ public class HttpClientRequestImpl implements HttpClientRequest {
         conn.reportBytesWritten(written);
 
         if (respHandler != null) {
-          conn.endRequest();
+          endRequest();
         }
       } else {
         if (writeHead) {
@@ -663,8 +669,15 @@ public class HttpClientRequestImpl implements HttpClientRequest {
     }
   }
 
-  void reportResponseEnd(HttpClientResponseImpl resp) {
-    System.out.println("HELLO");
+  private void endRequest() {
+    conn.endRequest();
+    HttpClientMetrics metrics = client.getMetrics();
+    if (metrics.isEnabled()) {
+      metrics.requestEnd(metric);
+    }
+  }
+
+  void reportResponseEnd() {
     HttpClientMetrics metrics = client.httpClientMetrics();
     if (metrics.isEnabled()) {
       metrics.responseEnd(metric);
@@ -761,7 +774,7 @@ public class HttpClientRequestImpl implements HttpClientRequest {
         conn.reportBytesWritten(written);
 
         if (respHandler != null) {
-          conn.endRequest();
+          endRequest();
         }
       }
     }

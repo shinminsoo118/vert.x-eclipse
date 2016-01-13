@@ -604,10 +604,10 @@ public class MetricsTest extends VertxTestBase {
         assertEquals(5, serverMetric.socket.bytesRead.get());
         assertEquals(5, serverMetric.socket.bytesWritten.get());
         assertEquals(serverMetric.socket.remoteAddress.host(), serverMetric.socket.remoteName);
-        assertFalse(clientMetric.get().socket.connected.get());
-        assertEquals(5, clientMetric.get().socket.bytesRead.get());
-        assertEquals(5, clientMetric.get().socket.bytesWritten.get());
-        checker.accept(clientMetric.get().socket);
+        assertFalse(clientMetric.get().socket.get().connected.get());
+        assertEquals(5, clientMetric.get().socket.get().bytesRead.get());
+        assertEquals(5, clientMetric.get().socket.get().bytesWritten.get());
+        checker.accept(clientMetric.get().socket.get());
         testComplete();
       });
     }).listen(8080, ar1 -> {
@@ -633,7 +633,7 @@ public class MetricsTest extends VertxTestBase {
   }
 
   @Test
-  public void testHttpRequestTimeout() throws Exception {
+  public void testClientHttpRequestTimeout() throws Exception {
     HttpClient client = vertx.createHttpClient();
     FakeHttpClientMetrics metrics = FakeMetricsBase.getMetrics(client);
     CountDownLatch listenLatch = new CountDownLatch(1);
@@ -658,8 +658,42 @@ public class MetricsTest extends VertxTestBase {
     HttpClientMetric requestMetric = requestMetricHolder.get();
     waitUntil(() -> requestMetric.requestExceptions.size() == 1);
     assertNull(metrics.getMetric(request));
+    assertNotNull(requestMetric.socket.get());
+    assertTrue(requestMetric.requestEnded.get());
     assertNull(requestMetric.response.get());
-    assertFalse(requestMetric.ended.get());
+    assertFalse(requestMetric.responseEnded.get());
+  }
+
+  @Test
+  public void testClientHttpRequestError() throws Exception {
+    HttpClient client = vertx.createHttpClient();
+    FakeHttpClientMetrics metrics = FakeMetricsBase.getMetrics(client);
+    CountDownLatch listenLatch = new CountDownLatch(1);
+    HttpClientRequest request = client.request(HttpMethod.CONNECT, 8080, "localhost", "/", resp -> {
+      fail();
+    });
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicReference<HttpClientMetric> requestMetricHolder = new AtomicReference<>();
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      requestMetricHolder.set(metrics.getMetric(request));
+      req.netSocket().close();
+      latch.countDown();
+    });
+    server.listen(8080, "localhost", ar -> {
+      assertTrue(ar.succeeded());
+      listenLatch.countDown();
+    });
+    awaitLatch(listenLatch);
+    request.sendHead();
+    awaitLatch(latch);
+    HttpClientMetric requestMetric = requestMetricHolder.get();
+    waitUntil(() -> !requestMetric.requestExceptions.isEmpty());
+    assertNull(metrics.getMetric(request));
+    assertNotNull(requestMetric.socket.get());
+    assertFalse(requestMetric.requestEnded.get());
+    assertNull(requestMetric.response.get());
+    assertFalse(requestMetric.responseEnded.get());
   }
 
   @Test

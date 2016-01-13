@@ -230,7 +230,7 @@ public class HttpClientResponseImpl implements HttpClientResponse  {
     synchronized (conn) {
       conn.reportBytesRead(bytesRead);
       bytesRead = 0;
-      request.reportResponseEnd(this);
+      request.reportResponseEnd();
       if (paused) {
         hasPausedEnd = true;
         pausedTrailer = trailer;

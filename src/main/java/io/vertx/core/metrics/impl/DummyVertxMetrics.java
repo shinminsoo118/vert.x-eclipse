@@ -216,8 +216,12 @@ public class DummyVertxMetrics implements VertxMetrics {
   protected class DummyHttpClientMetrics implements HttpClientMetrics<Void, Void, Void> {
 
     @Override
-    public Void requestBegin(Void socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request) {
+    public Void requestSchedule(String host, int port, HttpClientRequest request) {
       return null;
+    }
+
+    @Override
+    public void requestBegin(Void requestMetric, Void socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request) {
     }
 
     @Override
@@ -226,6 +230,10 @@ public class DummyVertxMetrics implements VertxMetrics {
 
     @Override
     public void requestExceptionOccured(Void requestMetric, Throwable cause) {
+    }
+
+    @Override
+    public void requestEnd(Void requestMetric) {
     }
 
     @Override

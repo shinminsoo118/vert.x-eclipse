@@ -60,10 +60,20 @@ public class FakeHttpClientMetrics extends FakeMetricsBase implements HttpClient
   }
 
   @Override
-  public HttpClientMetric requestBegin(SocketMetric socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request) {
-    HttpClientMetric metric = new HttpClientMetric(request, socketMetric);
+  public HttpClientMetric requestSchedule(String host, int port, HttpClientRequest request) {
+    HttpClientMetric metric = new HttpClientMetric(request, port, host);
     requests.put(request, metric);
     return metric;
+  }
+
+  @Override
+  public void requestBegin(HttpClientMetric requestMetric, SocketMetric socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request) {
+    requestMetric.socket.set(socketMetric);
+  }
+
+  @Override
+  public void requestEnd(HttpClientMetric requestMetric) {
+    requestMetric.requestEnded.set(true);
   }
 
   @Override
@@ -79,7 +89,7 @@ public class FakeHttpClientMetrics extends FakeMetricsBase implements HttpClient
 
   @Override
   public void responseEnd(HttpClientMetric requestMetric) {
-    requestMetric.ended.set(true);
+    requestMetric.responseEnded.set(true);
     requests.remove(requestMetric.request);
   }
 

@@ -43,15 +43,26 @@ import io.vertx.core.net.SocketAddress;
 public interface HttpClientMetrics<R, W, S> extends TCPMetrics<S> {
 
   /**
-   * Called when an http client request begins.
+   * Called when an http client request is scheduled.
    *
+   * @param host the remote host
+   * @param port the remote port
+   * @param request the {@link io.vertx.core.http.HttpClientRequest}
+   * @return the request metric
+   */
+  R requestSchedule(String host, int port, HttpClientRequest request);
+
+  /**
+   * Called when an http client request begins, this is called just after the request obtained the connection to
+   * send the request.
+   *
+   * @param requestMetric the request metric
    * @param socketMetric the socket metric
    * @param localAddress the local address
    * @param remoteAddress the remote address
    * @param request the {@link io.vertx.core.http.HttpClientRequest}
-   * @return the request metric
    */
-  R requestBegin(S socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request);
+  void requestBegin(R requestMetric, S socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request);
 
   /**
    * Called when an http client request encounters an error. When the error happens before the response begins,
@@ -62,6 +73,13 @@ public interface HttpClientMetrics<R, W, S> extends TCPMetrics<S> {
    * @param cause the error
    */
   void requestExceptionOccured(R requestMetric, Throwable cause);
+
+  /**
+   * Called when the http request ends, this is called just after the {@link HttpClientRequest#end()} method is called.
+   *
+   * @param requestMetric the request metric
+   */
+  void requestEnd(R requestMetric);
 
   /**
    * Called when the response begins for the {@code requestMetric}.

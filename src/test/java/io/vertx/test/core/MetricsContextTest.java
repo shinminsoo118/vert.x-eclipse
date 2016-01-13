@@ -306,9 +306,8 @@ public class MetricsContextTest extends AsyncTestBase {
       public HttpClientMetrics createMetrics(HttpClient client, HttpClientOptions options) {
         return new DummyHttpClientMetrics() {
           @Override
-          public Void requestBegin(Void socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request) {
+          public void requestBegin(Void requestMetric, Void socketMetric, SocketAddress localAddress, SocketAddress remoteAddress, HttpClientRequest request) {
             requestBeginCalled.set(true);
-            return null;
           }
           @Override
           public void responseEnd(Void requestMetric) {
